@@ -3,4 +3,4 @@ libpq-dev
 g++
 make
 python3-dev
-cython
+cython3
