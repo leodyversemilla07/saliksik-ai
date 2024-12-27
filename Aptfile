@@ -1,6 +1,0 @@
-build-essential
-libpq-dev
-g++
-make
-python3-dev
-cython3
