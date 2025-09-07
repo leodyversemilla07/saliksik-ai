@@ -2,3 +2,58 @@ WARNING 2025-09-08 00:59:15,474 ai_processor 17448 14396 Failed to initialize La
 WARNING 2025-09-08 00:59:52,306 ai_processor 2088 9204 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
 WARNING 2025-09-08 01:00:25,003 ai_processor 20476 9380 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
 WARNING 2025-09-08 01:01:22,817 ai_processor 15628 14596 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 01:07:47,195 ai_processor 18520 2556 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 01:08:18,531 ai_processor 18696 15772 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:09:18,013 autoreload 12492 8224 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:09:39,349 ai_processor 12492 8224 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:10:11,681 autoreload 9400 2060 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:10:32,401 ai_processor 9400 2060 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 01:10:56,026 log 9400 13424 Not Found: /
+WARNING 2025-09-08 01:10:56,239 log 9400 4076 Not Found: /favicon.ico
+WARNING 2025-09-08 01:10:58,230 log 9400 21240 Not Found: /
+INFO 2025-09-08 01:11:57,139 autoreload 9400 2060 C:\Users\Leodyver\CodeSanctum\saliksik_ai\pre_review\views.py changed, reloading.
+INFO 2025-09-08 01:12:00,419 autoreload 9432 21500 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:12:21,811 ai_processor 9432 21500 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:13:05,748 autoreload 9432 21500 C:\Users\Leodyver\CodeSanctum\saliksik_ai\pre_review\urls.py changed, reloading.
+INFO 2025-09-08 01:13:09,214 autoreload 1644 7380 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:13:30,301 ai_processor 1644 7380 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:15:30,684 autoreload 8056 7112 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:15:51,122 ai_processor 8056 7112 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:21:04,306 autoreload 2052 20176 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:21:27,714 ai_processor 2052 20176 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:22:49,219 autoreload 2052 20176 C:\Users\Leodyver\CodeSanctum\saliksik_ai\pre_review\urls.py changed, reloading.
+INFO 2025-09-08 01:22:52,318 autoreload 12492 2056 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:23:15,180 ai_processor 12492 2056 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:24:11,759 views 12492 1128 Processing demo manuscript with 4998 characters
+INFO 2025-09-08 01:32:13,546 autoreload 10532 11732 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:32:35,262 ai_processor 10532 11732 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 01:32:53,498 log 10532 8128 Not Found: /api/demo/
+WARNING 2025-09-08 01:32:54,666 log 10532 8128 Not Found: /api/demo/
+WARNING 2025-09-08 01:33:39,097 log 10532 8128 Not Found: /api/demo/
+WARNING 2025-09-08 01:33:39,947 log 10532 8128 Not Found: /api/demo/
+WARNING 2025-09-08 01:33:53,664 log 10532 8128 Bad Request: /demo/
+WARNING 2025-09-08 01:34:19,142 log 10532 8128 Bad Request: /demo/
+WARNING 2025-09-08 01:35:23,164 log 10532 18372 Bad Request: /demo/
+WARNING 2025-09-08 01:35:37,620 log 10532 18372 Bad Request: /demo/
+WARNING 2025-09-08 01:35:39,067 log 10532 18372 Bad Request: /demo/
+WARNING 2025-09-08 01:35:39,245 log 10532 18372 Bad Request: /demo/
+WARNING 2025-09-08 01:35:39,402 log 10532 18372 Bad Request: /demo/
+WARNING 2025-09-08 01:35:40,125 log 10532 18372 Bad Request: /demo/
+WARNING 2025-09-08 01:36:03,349 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:36:49,170 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:36:55,727 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:38:19,370 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:38:19,900 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:38:20,042 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:38:20,224 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:38:20,377 log 10532 18372 Too Many Requests: /demo/
+WARNING 2025-09-08 01:39:12,080 log 10532 12240 Not Found: /favicon.ico
+WARNING 2025-09-08 01:39:14,229 log 10532 12240 Too Many Requests: /demo/
+WARNING 2025-09-08 01:39:47,167 log 10532 12240 Too Many Requests: /demo/
+WARNING 2025-09-08 01:41:15,860 log 10532 12240 Too Many Requests: /demo/
+INFO 2025-09-08 01:42:13,653 autoreload 11940 3584 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:42:35,777 ai_processor 11940 3584 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:44:42,876 views 11940 2088 Processing demo manuscript with 4999 characters
+INFO 2025-09-08 01:46:29,536 views 11940 2088 Processing demo manuscript with 4999 characters
+INFO 2025-09-08 01:48:37,180 autoreload 4620 17568 Watching for file changes with StatReloader
+WARNING 2025-09-08 01:48:58,532 ai_processor 4620 17568 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.

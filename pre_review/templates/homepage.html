@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Saliksik AI - Manuscript Pre-Review System</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #f8f9fa;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        text-align: center;
+        background: white;
+        padding: 40px 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 40px;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        color: #2c3e50;
+        font-weight: 300;
+      }
+
+      .header .icon {
+        font-size: 3rem;
+        color: #3498db;
+        margin-bottom: 20px;
+      }
+
+      .header p {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+      }
+
+      .main-content {
+        margin-bottom: 40px;
+      }
+
+      .demo-section {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+        color: #2c3e50;
+      }
+
+      .section-title i {
+        margin-right: 10px;
+        color: #3498db;
+        font-size: 1.3rem;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #2c3e50;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 150px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: inherit;
+        resize: vertical;
+      }
+
+      textarea:focus {
+        border-color: #3498db;
+        outline: none;
+      }
+
+      .btn {
+        background: #3498db;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background 0.3s;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .btn:hover {
+        background: #2980b9;
+      }
+
+      .btn i {
+        margin-right: 8px;
+      }
+
+      .btn:disabled {
+        background: #bdc3c7;
+        cursor: not-allowed;
+      }
+
+      .loading {
+        display: none;
+      }
+
+      .result {
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 5px;
+      }
+
+      .result.success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+
+      .result.error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .header .icon {
+          font-size: 2rem;
+        }
+
+        .demo-section {
+          padding: 20px;
+          margin: 0 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <i class="fas fa-brain icon"></i>
+        <h1>Saliksik AI</h1>
+        <p>Automated Manuscript Pre-Review System</p>
+      </div>
+
+      <div class="main-content">
+        <div class="demo-section">
+          <h2 class="section-title">
+            <i class="fas fa-play-circle"></i>
+            Try the Demo
+          </h2>
+          <div
+            style="
+              background: #e8f4fd;
+              border: 1px solid #bee5eb;
+              padding: 10px;
+              border-radius: 5px;
+              margin-bottom: 20px;
+              font-size: 0.9rem;
+            "
+          >
+            <i
+              class="fas fa-info-circle"
+              style="color: #0c5460; margin-right: 5px"
+            ></i>
+            <strong>Demo Limits:</strong> 10 requests per hour, 50-5000
+            characters per text
+          </div>
+          <form id="demoForm">
+            <div class="form-group">
+              <label for="manuscript"
+                >Paste your manuscript text (50-5000 characters):</label
+              >
+              <textarea
+                id="manuscript"
+                name="manuscript"
+                placeholder="Enter your research manuscript text here... (Demo limit: 5000 characters)"
+                maxlength="5000"
+                required
+              ></textarea>
+              <div
+                id="charCount"
+                style="font-size: 0.9rem; color: #666; margin-top: 5px"
+              >
+                Characters: 0/5000
+              </div>
+            </div>
+            <button type="submit" class="btn" id="submitBtn">
+              <i class="fas fa-search"></i>
+              Analyze Manuscript
+            </button>
+          </form>
+
+          <div class="loading" id="loading">
+            <i class="fas fa-spinner fa-spin"></i> Analyzing your manuscript...
+          </div>
+
+          <div id="result" class="result" style="display: none"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Character counter
+      const manuscriptTextarea = document.getElementById("manuscript");
+      const charCount = document.getElementById("charCount");
+      const submitBtn = document.getElementById("submitBtn");
+
+      manuscriptTextarea.addEventListener("input", function () {
+        const length = this.value.length;
+        charCount.textContent = `Characters: ${length}/5000`;
+
+        if (length < 50) {
+          charCount.style.color = "#e74c3c";
+          charCount.textContent = `Characters: ${length}/5000 (minimum 50 required)`;
+          submitBtn.disabled = true;
+        } else if (length >= 5000) {
+          charCount.style.color = "#e74c3c";
+          charCount.textContent = `Characters: ${length}/5000 (demo limit reached)`;
+          submitBtn.disabled = false;
+        } else {
+          charCount.style.color = "#27ae60";
+          submitBtn.disabled = false;
+        }
+      });
+
+      document
+        .getElementById("demoForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const loading = document.getElementById("loading");
+          const result = document.getElementById("result");
+          const manuscript = manuscriptTextarea.value;
+
+          // Client-side validation
+          if (!manuscript.trim()) {
+            alert("Please enter some manuscript text");
+            return;
+          }
+
+          if (manuscript.length < 50) {
+            alert(
+              "Please provide at least 50 characters of text for meaningful analysis."
+            );
+            return;
+          }
+
+          if (manuscript.length > 5000) {
+            alert(
+              "Demo is limited to 5000 characters. Please shorten your text or register for full access."
+            );
+            return;
+          }
+
+          // Show loading state
+          submitBtn.disabled = true;
+          loading.style.display = "block";
+          result.style.display = "none";
+
+          try {
+            console.log("Sending request to /demo/");
+            const response = await fetch("/demo/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+              },
+              body: JSON.stringify({
+                manuscript_text: manuscript,
+              }),
+            });
+
+            console.log("Response status:", response.status);
+            console.log("Response headers:", response.headers);
+            
+            if (response.status === 429) {
+              // Rate limit exceeded
+              result.className = "result error";
+              result.innerHTML = `
+                        <h3><i class="fas fa-clock"></i> Rate Limit Exceeded</h3>
+                        <p>You've reached the demo usage limit (10 requests per hour).</p>
+                        <p><strong>Options:</strong></p>
+                        <ul style="margin-left: 20px;">
+                            <li>Wait an hour and try again</li>
+                            <li>Register for a full account for higher limits (100/hour)</li>
+                            <li>Use the full API endpoints for production use</li>
+                        </ul>
+                        <p><small><i class="fas fa-info-circle"></i> This limit helps ensure fair access to the demo for all users.</small></p>
+                    `;
+              result.style.display = "block";
+              return;
+            }
+
+            console.log("Attempting to parse JSON response...");
+            
+            // Get response text first to check what we're actually receiving
+            const responseText = await response.text();
+            console.log("Raw response text:", responseText);
+            
+            let data;
+            try {
+              data = JSON.parse(responseText);
+              console.log("Parsed data:", data);
+            } catch (parseError) {
+              console.error("JSON parsing failed:", parseError);
+              throw new Error(`Failed to parse response as JSON: ${parseError.message}`);
+            }
+
+            if (response.ok) {
+              result.className = "result success";
+              
+              // Check if we have the expected data structure
+              if (!data) {
+                result.innerHTML = `
+                  <h3><i class="fas fa-exclamation-circle"></i> No Data Received</h3>
+                  <p>The server responded successfully but no data was returned.</p>
+                `;
+              } else {
+                // Handle the actual response format
+                const languageQuality = data.language_quality || {};
+                const readabilityScore = languageQuality.readability_score || 0;
+                const wordCount = languageQuality.word_count || 0;
+                const sentenceCount = languageQuality.sentence_count || 0;
+                const uniqueWords = languageQuality.unique_words || 0;
+                const grammarIssues = languageQuality.grammar_issues;
+                
+                result.innerHTML = `
+                          <h3><i class="fas fa-check-circle"></i> Analysis Complete</h3>
+                          <div style="margin-bottom: 15px;">
+                              <p><strong>Word Count:</strong> ${wordCount}</p>
+                              <p><strong>Sentence Count:</strong> ${sentenceCount}</p>
+                              <p><strong>Unique Words:</strong> ${uniqueWords}</p>
+                              <p><strong>Readability Score:</strong> ${readabilityScore} (Flesch Reading Ease)</p>
+                              ${grammarIssues !== undefined ? `<p><strong>Grammar Issues:</strong> ${grammarIssues}</p>` : '<p><strong>Grammar Check:</strong> Not available (Java required)</p>'}
+                          </div>
+                          <div style="margin-top: 15px;">
+                              <h4><i class="fas fa-file-text"></i> Summary:</h4>
+                              <p style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 5px;">${data.summary || 'No summary available'}</p>
+                          </div>
+                          <div style="margin-top: 15px;">
+                              <h4><i class="fas fa-tags"></i> Keywords:</h4>
+                              <p style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 5px;">${Array.isArray(data.keywords) ? data.keywords.join(', ') : (data.keywords || 'No keywords available')}</p>
+                          </div>
+                          ${data.metadata ? `
+                          <div style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                              <p><i class="fas fa-info-circle"></i> Processing time: ${data.metadata.processing_time}s | Input length: ${data.metadata.input_length} chars</p>
+                          </div>
+                          ` : ''}
+                      `;
+              }
+            } else {
+              result.className = "result error";
+              result.innerHTML = `
+                        <h3><i class="fas fa-exclamation-circle"></i> Error</h3>
+                        <p>${
+                          data.error ||
+                          "An error occurred while processing your manuscript."
+                        }</p>
+                        ${
+                          data.details
+                            ? `<p><small>${data.details}</small></p>`
+                            : ""
+                        }
+                    `;
+            }
+
+            result.style.display = "block";
+          } catch (error) {
+            console.error("Fetch error:", error);
+            result.className = "result error";
+            result.innerHTML = `
+                    <h3><i class="fas fa-exclamation-circle"></i> Network Error</h3>
+                    <p>Unable to connect to the server. Please try again later.</p>
+                    <p><small>Error details: ${error.message}</small></p>
+                `;
+            result.style.display = "block";
+          } finally {
+            submitBtn.disabled = manuscriptTextarea.value.length < 50;
+            loading.style.display = "none";
+          }
+        });
+
+      // Helper function to get CSRF token
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(
+                cookie.substring(name.length + 1)
+              );
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+    </script>
+  </body>
+</html>
