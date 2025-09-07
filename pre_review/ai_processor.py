@@ -2,18 +2,46 @@ import spacy
 from nltk.tokenize import sent_tokenize
 from transformers import pipeline, BartTokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
-from language_tool_python import LanguageTool
 import numpy as np
 import io
 from pypdf import PdfReader
+import logging
+
+# Optional language tool import
+try:
+    from language_tool_python import LanguageTool
+    LANGUAGE_TOOL_AVAILABLE = True
+except ImportError:
+    LANGUAGE_TOOL_AVAILABLE = False
+    logging.warning("LanguageTool not available. Grammar checking will be disabled.")
+
+logger = logging.getLogger(__name__)
 
 
 class ManuscriptPreReviewer:
     def __init__(self):
-        self.nlp = spacy.load("en_core_web_sm")
-        self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-        self.language_tool = LanguageTool("en-US")
-        self.tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
+        try:
+            self.nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            logger.error("spaCy model 'en_core_web_sm' not found. Please install it with: python -m spacy download en_core_web_sm")
+            raise
+        
+        try:
+            self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+            self.tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
+        except Exception as e:
+            logger.error(f"Failed to load BART model: {str(e)}")
+            raise
+        
+        # Initialize language tool only if available and Java is installed
+        self.language_tool = None
+        if LANGUAGE_TOOL_AVAILABLE:
+            try:
+                self.language_tool = LanguageTool("en-US")
+                logger.info("LanguageTool initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize LanguageTool: {str(e)}. Grammar checking will be disabled.")
+                self.language_tool = None
 
     def preprocess_text(self, text):
         """Cleans and preprocesses the text."""
@@ -77,25 +105,48 @@ class ManuscriptPreReviewer:
     def assess_language_quality(self, text):
         """Analyzes grammar, readability, and other language quality metrics."""
         doc = self.nlp(text)
-        grammar_issues = len(self.language_tool.check(text))
+        
+        # Grammar checking (only if LanguageTool is available)
+        grammar_issues = 0
+        if self.language_tool:
+            try:
+                grammar_issues = len(self.language_tool.check(text))
+            except Exception as e:
+                logger.warning(f"Grammar checking failed: {str(e)}")
+                grammar_issues = -1  # Indicate that grammar checking failed
+        
         word_count = len(text.split())
         unique_words = len(set(text.split()))
         sentence_count = len(sent_tokenize(text))
-        readability_score = (
-            206.835
-            - 1.015 * (word_count / sentence_count)
-            - 84.6 * (len([token for token in doc if token.is_alpha]) / word_count)
-        )
+        
+        # Calculate readability score (Flesch Reading Ease)
+        if sentence_count > 0 and word_count > 0:
+            syllable_count = len([token for token in doc if token.is_alpha])  # Simplified syllable count
+            readability_score = (
+                206.835
+                - 1.015 * (word_count / sentence_count)
+                - 84.6 * (syllable_count / word_count)
+            )
+        else:
+            readability_score = 0
+        
         named_entities = len(doc.ents)
 
-        return {
+        quality_metrics = {
             "word_count": word_count,
             "unique_words": unique_words,
             "sentence_count": sentence_count,
             "named_entities": named_entities,
-            "grammar_issues": grammar_issues,
-            "readability_score": readability_score,
+            "readability_score": round(readability_score, 2),
         }
+        
+        # Add grammar issues only if available
+        if grammar_issues >= 0:
+            quality_metrics["grammar_issues"] = grammar_issues
+        else:
+            quality_metrics["grammar_check_available"] = False
+            
+        return quality_metrics
 
     def extract_text_from_pdf(self, pdf_file):
         """Extract text from a PDF file using pypdf."""

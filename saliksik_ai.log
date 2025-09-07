@@ -1,0 +1,4 @@
+WARNING 2025-09-08 00:59:15,474 ai_processor 17448 14396 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 00:59:52,306 ai_processor 2088 9204 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 01:00:25,003 ai_processor 20476 9380 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+WARNING 2025-09-08 01:01:22,817 ai_processor 15628 14596 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
