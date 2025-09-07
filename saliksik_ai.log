@@ -57,3 +57,4 @@ INFO 2025-09-08 01:44:42,876 views 11940 2088 Processing demo manuscript with 49
 INFO 2025-09-08 01:46:29,536 views 11940 2088 Processing demo manuscript with 4999 characters
 INFO 2025-09-08 01:48:37,180 autoreload 4620 17568 Watching for file changes with StatReloader
 WARNING 2025-09-08 01:48:58,532 ai_processor 4620 17568 Failed to initialize LanguageTool: No java install detected. Please install java to use language-tool-python.. Grammar checking will be disabled.
+INFO 2025-09-08 01:49:00,498 views 4620 6376 Processing demo manuscript with 4999 characters
