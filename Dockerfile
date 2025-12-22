@@ -1,10 +1,9 @@
-# Use Python 3.12 slim image
+# FastAPI Dockerfile
 FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV DJANGO_SETTINGS_MODULE=saliksik_ai.settings
 
 # Set work directory
 WORKDIR /app
@@ -15,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     wget \
     curl \
-    default-jdk \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -28,27 +27,29 @@ RUN python -m spacy download en_core_web_sm
 # Download NLTK data
 RUN python -c "import nltk; nltk.download('punkt')"
 
+# Pre-download HuggingFace BART model
+ENV HF_HOME=/root/.cache/huggingface
+RUN python - <<'PY'
+from transformers import pipeline, BartTokenizer
+print('Pre-fetching BART tokenizer...')
+BartTokenizer.from_pretrained('facebook/bart-large-cnn')
+print('Pre-fetching BART summarization pipeline...')
+pipeline('summarization', model='facebook/bart-large-cnn')
+print('Done pre-fetching BART artifacts')
+PY
+
 # Copy project
 COPY . /app/
 
 # Create logs directory
 RUN mkdir -p /app/logs
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
-# Run migrations
-RUN python manage.py migrate
-
-# Create superuser (optional, can be done via environment variables)
-# RUN echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@example.com', 'admin123')" | python manage.py shell
-
 # Expose port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/demo/ -X POST -H "Content-Type: application/json" -d '{"manuscript_text":"Health check test"}' || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Run FastAPI with Uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

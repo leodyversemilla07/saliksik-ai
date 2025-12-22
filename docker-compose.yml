@@ -1,59 +1,77 @@
-version: '3.8'
-
 services:
-  web:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=True
-      - SECRET_KEY=django-insecure-docker-dev-key-change-in-production
-      - DATABASE_URL=postgresql://saliksik:password@db:5432/saliksik_ai
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    depends_on:
-      - db
-      - redis
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
-
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_DB: saliksik_ai
-      POSTGRES_USER: saliksik
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB:-saliksik_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-saliksik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saliksik}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
 
-  nginx:
-    image: nginx:alpine
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "80:80"
-      - "443:443"
+      - "${WEB_PORT:-8000}:8000"
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
+      - .:/app
     depends_on:
-      - web
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.tasks worker -l info
+    restart: unless-stopped
+    profiles:
+      - celery
+      - production
 
 volumes:
   postgres_data:
   redis_data:
-  static_volume:
-  media_volume:

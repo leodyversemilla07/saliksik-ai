@@ -1,430 +1,528 @@
-# Saliksik AI Deployment Guide
+# Deployment Guide
 
-This guide covers deploying Saliksik AI in different environments.
+Production deployment guide for Saliksik AI
 
-## Quick Deploy Options
+## 📋 Table of Contents
 
-### 🐳 Docker Deployment (Recommended)
+- [Prerequisites](#prerequisites)
+- [Environment Setup](#environment-setup)
+- [Docker Deployment](#docker-deployment)
+- [Manual Deployment](#manual-deployment)
+- [Nginx Configuration](#nginx-configuration)
+- [SSL/TLS Setup](#ssltls-setup)
+- [Monitoring](#monitoring)
+- [Backup Strategy](#backup-strategy)
+- [Troubleshooting](#troubleshooting)
 
-#### Development Deployment
+---
+
+## Prerequisites
+
+### System Requirements
+
+**Minimum:**
+- 2 CPU cores
+- 4GB RAM
+- 20GB storage
+- Ubuntu 20.04+ / Debian 11+ / CentOS 8+
+
+**Recommended:**
+- 4 CPU cores
+- 8GB RAM
+- 50GB SSD storage
+- Ubuntu 22.04 LTS
+
+### Software Requirements
+
+- Docker 24+ & Docker Compose 2.20+
+- PostgreSQL 15+
+- Redis 7+
+- Nginx 1.24+ (for reverse proxy)
+- Python 3.12+ (for manual deployment)
+
+---
+
+## Environment Setup
+
+### 1. Create Production Environment File
+
+```bash
+cp .env.example .env.production
+```
+
+### 2. Configure Production Variables
+
+Edit `.env.production`:
+
+```bash
+# Application
+DEBUG=False
+SECRET_KEY=<generate-strong-random-key-here>
+ALLOWED_ORIGINS=https://your-domain.com,https://api.your-domain.com
+
+# Database
+DATABASE_URL=postgresql://saliksik:secure_password@db:5432/saliksik_ai_prod
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# Celery
+CELERY_BROKER_URL=redis://redis:6379/1
+CELERY_RESULT_BACKEND=redis://redis:6379/1
+
+# Security
+MAX_FILE_SIZE_MB=10
+API_RATE_LIMIT=100/hour
+
+# PostgreSQL
+POSTGRES_DB=saliksik_ai_prod
+POSTGRES_USER=saliksik
+POSTGRES_PASSWORD=<strong-database-password>
+```
+
+### 3. Generate Secret Key
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+---
+
+## Docker Deployment
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/yourusername/saliksik-ai.git
+cd saliksik-ai
+```
+
+### 2. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with production values
+```
+
+### 3. Build and Start Services
+
+```bash
+docker-compose up -d --build
+```
+
+### 4. Verify Deployment
+
+```bash
+# Check running containers
+docker-compose ps
+
+# View logs
+docker-compose logs -f web
+
+# Test health endpoint
+curl http://localhost:8000/health
+```
+
+### 5. Create Initial Admin User (Optional)
+
+```bash
+docker-compose exec web python -c "
+from app.core.database import SessionLocal
+from app.models.user import User
+from app.core.security import get_password_hash
+
+db = SessionLocal()
+admin = User(
+    username='admin',
+    email='admin@yourdomain.com',
+    hashed_password=get_password_hash('your-admin-password')
+)
+db.add(admin)
+db.commit()
+print('Admin user created')
+"
+```
+
+---
+
+## Manual Deployment
+
+### 1. System Preparation
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install dependencies
+sudo apt install -y python3.12 python3.12-venv python3-pip \
+  postgresql-15 redis-server nginx git
+```
+
+### 2. Create Application User
+
+```bash
+sudo useradd -m -s /bin/bash saliksik
+sudo su - saliksik
+```
+
+### 3. Setup Application
+
 ```bash
 # Clone repository
-git clone https://github.com/leodyversemilla07/saliksik-ai.git
+git clone https://github.com/yourusername/saliksik-ai.git
 cd saliksik-ai
 
-# Simple development deployment (SQLite)
-docker-compose -f docker-compose.dev.yml up --build
-```
+# Create virtual environment
+python3.12 -m venv .venv
+source .venv/bin/activate
 
-#### Production Deployment
-```bash
-# Full production stack (PostgreSQL + Redis + Nginx)
-docker-compose up --build -d
-```
-
-### 🔧 Manual Deployment
-
-#### Prerequisites
-- Python 3.8+
-- PostgreSQL (for production)
-- Redis (optional, for caching)
-- Java 8+ (optional, for LanguageTool)
-
-#### Setup Steps
-```bash
-# 1. Clone and setup
-git clone https://github.com/leodyversemilla07/saliksik-ai.git
-cd saliksik-ai
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Environment configuration
-cp .env.example .env
-# Edit .env with your production settings
-
-# 3. Database setup
-python manage.py migrate
-python manage.py collectstatic
-
-# 4. AI models setup
+# Download AI models
 python -m spacy download en_core_web_sm
 python -c "import nltk; nltk.download('punkt')"
-
-# 5. Create superuser
-python manage.py createsuperuser
-
-# 6. Start server
-python manage.py runserver
 ```
 
-## Environment Configuration
-
-### Required Environment Variables
+### 4. Configure PostgreSQL
 
 ```bash
-# Security (REQUIRED)
-SECRET_KEY=your-secure-secret-key-here
-DEBUG=False
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-
-# Database (PostgreSQL recommended for production)
-DATABASE_URL=postgresql://user:password@localhost:5432/saliksik_ai
-
-# CORS (adjust for your frontend domain)
-CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
-CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
-```
-
-### Optional Environment Variables
-
-```bash
-# File upload limits
-MAX_FILE_SIZE_MB=10
-
-# API rate limiting
-API_RATE_LIMIT=1000/hour
-
-# Caching (if using Redis)
-CACHE_URL=redis://localhost:6379/1
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=/var/log/saliksik_ai.log
-```
-
-## Database Setup
-
-### SQLite (Development)
-- Default configuration
-- No additional setup required
-- Not recommended for production
-
-### PostgreSQL (Production)
-```bash
-# Install PostgreSQL
-sudo apt install postgresql postgresql-contrib
+# Switch to postgres user
+sudo su - postgres
 
 # Create database and user
-sudo -u postgres psql
-CREATE DATABASE saliksik_ai;
-CREATE USER saliksik WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE saliksik_ai TO saliksik;
-\q
+createdb saliksik_ai_prod
+createuser saliksik_user
+psql -c "ALTER USER saliksik_user WITH PASSWORD 'secure_password';"
+psql -c "GRANT ALL PRIVILEGES ON DATABASE saliksik_ai_prod TO saliksik_user;"
 
-# Update DATABASE_URL in .env
-DATABASE_URL=postgresql://saliksik:your_password@localhost:5432/saliksik_ai
+# Exit postgres user
+exit
 ```
 
-## Web Server Configuration
+### 5. Initialize Database
 
-### Nginx Configuration
-
-Create `/etc/nginx/sites-available/saliksik_ai`:
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-    
-    # Redirect HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com www.yourdomain.com;
-    
-    # SSL Configuration
-    ssl_certificate /path/to/your/certificate.crt;
-    ssl_certificate_key /path/to/your/private.key;
-    
-    # Security headers
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options DENY;
-    add_header X-XSS-Protection "1; mode=block";
-    
-    # Static files
-    location /static/ {
-        alias /path/to/saliksik_ai/staticfiles/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    # Media files
-    location /media/ {
-        alias /path/to/saliksik_ai/media/;
-    }
-    
-    # API requests
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Upload size limit
-        client_max_body_size 10M;
-    }
-}
-```
-
-Enable the site:
 ```bash
-sudo ln -s /etc/nginx/sites-available/saliksik_ai /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+# As saliksik user
+cd ~/saliksik-ai
+source .venv/bin/activate
+
+python -c "from app.core.database import Base, engine; Base.metadata.create_all(bind=engine)"
 ```
 
-### Systemd Service (for manual deployment)
+### 6. Create Systemd Service
 
-Create `/etc/systemd/system/saliksik_ai.service`:
+Create `/etc/systemd/system/saliksik-ai.service`:
 
 ```ini
 [Unit]
-Description=Saliksik AI Django Application
-After=network.target
+Description=Saliksik AI FastAPI Application
+After=network.target postgresql.service redis.service
 
 [Service]
-Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/path/to/saliksik_ai
-Environment=PATH=/path/to/saliksik_ai/venv/bin
-EnvironmentFile=/path/to/saliksik_ai/.env
-ExecStart=/path/to/saliksik_ai/venv/bin/gunicorn \
-    --workers 3 \
-    --bind 127.0.0.1:8000 \
-    saliksik_ai.wsgi:application
+Type=notify
+User=saliksik
+Group=saliksik
+WorkingDirectory=/home/saliksik/saliksik-ai
+Environment="PATH=/home/saliksik/saliksik-ai/.venv/bin"
+EnvironmentFile=/home/saliksik/saliksik-ai/.env
+ExecStart=/home/saliksik/saliksik-ai/.venv/bin/gunicorn main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 127.0.0.1:8000 \
+  --access-logfile /var/log/saliksik-ai/access.log \
+  --error-logfile /var/log/saliksik-ai/error.log
 Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start:
+### 7. Start Service
+
 ```bash
+# Create log directory
+sudo mkdir -p /var/log/saliksik-ai
+sudo chown saliksik:saliksik /var/log/saliksik-ai
+
+# Enable and start service
 sudo systemctl daemon-reload
-sudo systemctl enable saliksik_ai
-sudo systemctl start saliksik_ai
+sudo systemctl enable saliksik-ai
+sudo systemctl start saliksik-ai
+
+# Check status
+sudo systemctl status saliksik-ai
 ```
 
-## Cloud Deployment
+---
 
-### AWS ECS with Docker
+## Nginx Configuration
 
-1. Build and push image:
-```bash
-# Build image
-docker build -t saliksik-ai .
+### 1. Create Nginx Config
 
-# Tag for ECR
-docker tag saliksik-ai:latest your-account.dkr.ecr.region.amazonaws.com/saliksik-ai:latest
+Create `/etc/nginx/sites-available/saliksik-ai`:
 
-# Push to ECR
-aws ecr get-login-password --region region | docker login --username AWS --password-stdin your-account.dkr.ecr.region.amazonaws.com
-docker push your-account.dkr.ecr.region.amazonaws.com/saliksik-ai:latest
-```
+```nginx
+server {
+    listen 80;
+    server_name api.yourdomain.com;
 
-2. Create ECS task definition and service
-3. Configure RDS PostgreSQL instance
-4. Set up ElastiCache Redis (optional)
-5. Configure ALB with SSL termination
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+    limit_req zone=api_limit burst=20 nodelay;
 
-### Heroku Deployment
+    # Client body size
+    client_max_body_size 10M;
 
-1. Create `Procfile`:
-```
-web: gunicorn saliksik_ai.wsgi --log-file -
-release: python manage.py migrate
-```
+    # Logging
+    access_log /var/log/nginx/saliksik-ai-access.log;
+    error_log /var/log/nginx/saliksik-ai-error.log;
 
-2. Deploy:
-```bash
-heroku create your-app-name
-heroku addons:create heroku-postgresql:mini
-heroku addons:create heroku-redis:mini
-heroku config:set SECRET_KEY=your-secret-key
-heroku config:set DEBUG=False
-git push heroku main
-```
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
 
-### DigitalOcean App Platform
+        # Timeouts
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
 
-1. Create `app.yaml`:
-```yaml
-name: saliksik-ai
-services:
-- name: web
-  source_dir: /
-  github:
-    repo: your-username/saliksik-ai
-    branch: main
-  run_command: gunicorn saliksik_ai.wsgi:application
-  environment_slug: python
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  envs:
-  - key: SECRET_KEY
-    value: your-secret-key
-  - key: DEBUG
-    value: "False"
-databases:
-- name: db
-  engine: PG
-  num_nodes: 1
-  size: db-s-dev-database
-```
-
-## Monitoring & Maintenance
-
-### Health Checks
-
-Add to your monitoring system:
-```bash
-# Basic health check
-curl -f http://localhost:8000/demo/ \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"manuscript_text":"Health check test text for monitoring"}'
-```
-
-### Log Management
-
-```bash
-# Rotate logs
-sudo logrotate -f /etc/logrotate.d/saliksik_ai
-
-# Monitor logs
-tail -f /var/log/saliksik_ai.log
-```
-
-### Database Backups
-
-```bash
-# PostgreSQL backup
-pg_dump -h localhost -U saliksik saliksik_ai > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# Restore
-psql -h localhost -U saliksik saliksik_ai < backup_file.sql
-```
-
-## Security Checklist
-
-### Production Security
-
-- [ ] Set `DEBUG=False`
-- [ ] Use strong `SECRET_KEY`
-- [ ] Configure HTTPS/SSL
-- [ ] Set proper `ALLOWED_HOSTS`
-- [ ] Configure CORS properly
-- [ ] Enable rate limiting
-- [ ] Set up firewall rules
-- [ ] Regular security updates
-- [ ] Monitor for vulnerabilities
-
-### API Security
-
-- [ ] Token authentication enabled
-- [ ] Rate limiting configured
-- [ ] Input validation in place
-- [ ] File upload restrictions
-- [ ] Error message sanitization
-- [ ] Request size limits
-
-## Performance Optimization
-
-### Database Optimization
-
-```python
-# Add to settings.py for production
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'OPTIONS': {
-            'MAX_CONNS': 20,
-            'CONN_MAX_AGE': 600,
-        }
+        # WebSocket support (if needed)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
     }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
 }
 ```
 
-### Caching Setup
+### 2. Enable Site
 
-```python
-# Redis caching
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
-    }
+```bash
+sudo ln -s /etc/nginx/sites-available/saliksik-ai /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+---
+
+## SSL/TLS Setup
+
+### Using Let's Encrypt (Certbot)
+
+```bash
+# Install Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Get certificate
+sudo certbot --nginx -d api.yourdomain.com
+
+# Auto-renewal (already configured with certbot)
+sudo certbot renew --dry-run
+```
+
+### Manual SSL Configuration
+
+Update Nginx config:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
+
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # HSTS
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    # ... rest of configuration
+}
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+    return 301 https://$server_name$request_uri;
 }
 ```
 
-### Static Files
+---
+
+## Monitoring
+
+### 1. Application Logs
 
 ```bash
-# Collect static files
-python manage.py collectstatic --noinput
+# Systemd service logs
+sudo journalctl -u saliksik-ai -f
 
-# Compress static files (optional)
-python manage.py compress
+# Application logs
+tail -f /var/log/saliksik-ai/error.log
+
+# Nginx logs
+tail -f /var/log/nginx/saliksik-ai-access.log
 ```
+
+### 2. Health Monitoring
+
+```bash
+# Create health check script
+cat > /usr/local/bin/check-saliksik.sh << 'EOF'
+#!/bin/bash
+response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+if [ $response != "200" ]; then
+    echo "Health check failed with status $response"
+    sudo systemctl restart saliksik-ai
+fi
+EOF
+
+chmod +x /usr/local/bin/check-saliksik.sh
+
+# Add to crontab
+crontab -e
+# Add: */5 * * * * /usr/local/bin/check-saliksik.sh
+```
+
+### 3. Resource Monitoring
+
+```bash
+# Install monitoring tools
+sudo apt install -y htop iotop nethogs
+
+# Monitor processes
+htop
+
+# Monitor Docker resources (if using Docker)
+docker stats
+```
+
+---
+
+## Backup Strategy
+
+### 1. Database Backup
+
+```bash
+# Create backup script
+cat > /usr/local/bin/backup-saliksik-db.sh << 'EOF'
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/var/backups/saliksik-ai"
+mkdir -p $BACKUP_DIR
+
+pg_dump -U saliksik_user saliksik_ai_prod | \
+  gzip > $BACKUP_DIR/db_backup_$DATE.sql.gz
+
+# Keep only last 30 days
+find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +30 -delete
+EOF
+
+chmod +x /usr/local/bin/backup-saliksik-db.sh
+
+# Schedule daily backups
+crontab -e
+# Add: 0 2 * * * /usr/local/bin/backup-saliksik-db.sh
+```
+
+### 2. Restore Database
+
+```bash
+gunzip < /var/backups/saliksik-ai/db_backup_YYYYMMDD_HHMMSS.sql.gz | \
+  psql -U saliksik_user saliksik_ai_prod
+```
+
+---
 
 ## Troubleshooting
 
-### Common Issues
+### Service Won't Start
 
-1. **AI Models not found**
 ```bash
-python -m spacy download en_core_web_sm
-python -c "import nltk; nltk.download('punkt')"
+# Check service status
+sudo systemctl status saliksik-ai
+
+# View recent logs
+sudo journalctl -u saliksik-ai -n 50
+
+# Check port availability
+sudo lsof -i :8000
 ```
 
-2. **Database connection errors**
-- Check DATABASE_URL format
-- Verify database credentials
-- Ensure database server is running
+### Database Connection Issues
 
-3. **Permission errors**
 ```bash
-sudo chown -R www-data:www-data /path/to/saliksik_ai
-sudo chmod -R 755 /path/to/saliksik_ai
+# Test database connection
+psql -U saliksik_user -d saliksik_ai_prod -h localhost
+
+# Check PostgreSQL status
+sudo systemctl status postgresql
+
+# View PostgreSQL logs
+sudo tail -f /var/log/postgresql/postgresql-15-main.log
 ```
 
-4. **Large file upload failures**
-- Check `MAX_FILE_SIZE_MB` setting
-- Verify nginx `client_max_body_size`
-- Check Django `FILE_UPLOAD_MAX_MEMORY_SIZE`
+### High Memory Usage
 
-### Debug Mode
-
-For troubleshooting, temporarily enable debug mode:
 ```bash
-export DEBUG=True
-python manage.py runserver
+# Restart service
+sudo systemctl restart saliksik-ai
+
+# Reduce workers in systemd service
+# Edit: --workers 2 (instead of 4)
+sudo systemctl daemon-reload
+sudo systemctl restart saliksik-ai
 ```
 
-**Remember to disable debug mode in production!**
+### Clear Cache
+
+```bash
+# Using Docker
+docker-compose exec redis redis-cli FLUSHALL
+
+# Manual
+redis-cli FLUSHALL
+```
+
+---
+
+## Production Checklist
+
+Before going live:
+
+- [ ] `DEBUG=False` in environment
+- [ ] Strong `SECRET_KEY` configured
+- [ ] Database password changed
+- [ ] SSL/TLS certificates installed
+- [ ] Firewall configured (allow 80, 443)
+- [ ] Database backups scheduled
+- [ ] Log rotation configured
+- [ ] Monitoring setup
+- [ ] Health checks configured
+- [ ] Rate limiting enabled
+- [ ] CORS properly configured
+- [ ] Admin user created
+- [ ] API documentation accessible
+- [ ] Security headers configured
+- [ ] Error tracking setup (Sentry, etc.)
+
+---
 
 ## Support
 
 For deployment issues:
-1. Check application logs
-2. Verify environment variables
-3. Test database connectivity
-4. Review security settings
-5. Contact support if needed
-
-## Next Steps
-
-After successful deployment:
-1. Set up monitoring and alerting
-2. Configure automated backups
-3. Plan for scaling and load balancing
-4. Implement CI/CD pipeline
-5. Set up staging environment
+- Check logs first
+- Review this guide
+- Check [GitHub Issues](https://github.com/yourusername/saliksik-ai/issues)
+- Contact support

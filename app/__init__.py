@@ -1,0 +1,3 @@
+"""
+Saliksik AI FastAPI Application
+"""
