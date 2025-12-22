@@ -22,3 +22,9 @@ class User(Base):
     
     # Relationships
     analyses = relationship("ManuscriptAnalysis", back_populates="user")
+    reviewer_profile = relationship(
+        "Reviewer", 
+        back_populates="user", 
+        uselist=False,
+        cascade="all, delete-orphan"
+    )

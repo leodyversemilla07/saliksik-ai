@@ -30,3 +30,9 @@ redis==5.2.1
 
 # Utilities
 python-decouple==3.8
+
+# Enhancement Features
+datasketch>=1.6.0          # Plagiarism detection (MinHash LSH)
+xxhash>=3.4.0              # Fast hashing for document fingerprinting
+sentence-transformers>=2.2.0  # Reviewer matching (semantic similarity)
+langdetect>=1.0.9          # Multi-language detection

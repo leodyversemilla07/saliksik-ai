@@ -22,7 +22,12 @@ async def api_info():
             "PDF text extraction",
             "JWT-based authentication",
             "Redis caching for performance",
-            "Rate limiting and security controls"
+            "Rate limiting and security controls",
+            # Enhancement features
+            "Plagiarism detection with MinHash LSH",
+            "Citation analysis (APA, MLA, IEEE, Chicago)",
+            "Reviewer matching with semantic similarity",
+            "Multi-language support"
         ],
         "endpoints": {
             "docs": "/docs - Interactive API documentation (Swagger UI)",
@@ -40,6 +45,17 @@ async def api_info():
             "pre_review": "POST /api/v1/analysis/pre-review (authenticated)",
             "history": "GET /api/v1/analysis/history (authenticated)"
         },
+        "plagiarism": {
+            "check": "POST /api/v1/plagiarism/check (authenticated)",
+            "stats": "GET /api/v1/plagiarism/stats",
+            "enabled": settings.ENABLE_PLAGIARISM_CHECK
+        },
+        "reviewers": {
+            "create_profile": "POST /api/v1/reviewers/ (authenticated)",
+            "get_suggestions": "GET /api/v1/reviewers/analysis/{id}/suggestions",
+            "assign": "POST /api/v1/reviewers/analysis/{id}/assign/{reviewer_id}",
+            "enabled": settings.ENABLE_REVIEWER_MATCHING
+        },
         "limits": {
             "demo": {
                 "max_text_length": 5000,
@@ -56,5 +72,12 @@ async def api_info():
             "server": "online",
             "debug_mode": settings.DEBUG,
             "cache_backend": "redis" if settings.REDIS_URL else "memory"
+        },
+        "enhancement_features": {
+            "plagiarism_detection": settings.ENABLE_PLAGIARISM_CHECK,
+            "citation_analysis": settings.ENABLE_CITATION_ANALYSIS,
+            "reviewer_matching": settings.ENABLE_REVIEWER_MATCHING,
+            "multi_language": settings.AUTO_DETECT_LANGUAGE,
+            "supported_languages": settings.SUPPORTED_LANGUAGES.split(",")
         }
     }

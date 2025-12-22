@@ -4,6 +4,8 @@ Analysis schemas for manuscript processing.
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from app.schemas.plagiarism import PlagiarismResult
+from app.schemas.citation import CitationAnalysisResult
 
 
 class AnalysisRequest(BaseModel):
@@ -27,6 +29,13 @@ class LanguageQuality(BaseModel):
     grammar_check_available: Optional[bool] = None
 
 
+class LanguageInfo(BaseModel):
+    """Detected language information."""
+    code: str = Field(..., description="ISO 639-1 language code (e.g., 'en', 'es')")
+    name: str = Field(..., description="Full language name (e.g., 'English')")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Detection confidence")
+
+
 class AnalysisMetadata(BaseModel):
     """Analysis metadata."""
     analysis_id: Optional[int] = None
@@ -44,6 +53,10 @@ class AnalysisResponse(BaseModel):
     keywords: List[str]
     language_quality: LanguageQuality
     metadata: AnalysisMetadata
+    # Enhancement features (all optional)
+    language: Optional[LanguageInfo] = None  # Phase 4: Multi-language
+    plagiarism: Optional[PlagiarismResult] = None  # Phase 1: Plagiarism detection
+    citation_analysis: Optional[CitationAnalysisResult] = None  # Phase 2: Citation analysis
 
 
 class AnalysisHistoryItem(BaseModel):

@@ -25,6 +25,10 @@ class ManuscriptAnalysis(Base):
     keywords = Column(JSON, default=list)
     language_quality = Column(JSON, default=dict)
     
+    # Enhancement features results
+    detected_language = Column(String(10), nullable=True)  # ISO 639-1 code
+    citation_analysis = Column(JSON, nullable=True)  # Citation analysis results
+    
     # Async Task Info
     status = Column(String(20), default='PENDING', index=True)  # PENDING, PROCESSING, COMPLETED, FAILED
     task_id = Column(String(50), unique=True, nullable=True, index=True)
@@ -35,6 +39,17 @@ class ManuscriptAnalysis(Base):
     
     # Relationships
     user = relationship("User", back_populates="analyses")
+    fingerprint = relationship(
+        "DocumentFingerprint",
+        back_populates="analysis",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+    reviewer_matches = relationship(
+        "ReviewerMatch",
+        back_populates="analysis",
+        cascade="all, delete-orphan"
+    )
 
 
 class ProcessingError(Base):

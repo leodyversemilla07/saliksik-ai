@@ -435,6 +435,222 @@ All endpoints may return the following error formats:
 
 ---
 
+## Plagiarism Detection Endpoints
+
+### Check Plagiarism
+
+Check manuscript for plagiarism against stored documents.
+
+**Endpoint:** `POST /api/v1/plagiarism/check`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+ "manuscript_text": "string (50-100000 chars, required)",
+ "threshold": 0.5  // Optional, 0.1-0.95
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "is_plagiarized": false,
+ "overall_similarity": 0.15,
+ "similar_documents": [
+  {
+   "analysis_id": 45,
+   "similarity_score": 0.15,
+   "matched_segments": ["sample matching text..."],
+   "original_filename": "previous_paper.pdf"
+  }
+ ],
+ "unique_content_percentage": 85.0,
+ "processing_time": 0.234,
+ "checked_against": 42
+}
+```
+
+---
+
+### Get Plagiarism Stats
+
+Get plagiarism detection index statistics.
+
+**Endpoint:** `GET /api/v1/plagiarism/stats`
+
+**Authentication:** Not required
+
+**Response:** `200 OK`
+```json
+{
+ "documents_indexed": 150,
+ "threshold": 0.5,
+ "num_permutations": 128,
+ "shingle_size": 5,
+ "datasketch_available": true,
+ "xxhash_available": true
+}
+```
+
+---
+
+## Reviewer Matching Endpoints
+
+### Create Reviewer Profile
+
+Create a reviewer profile for the current user.
+
+**Endpoint:** `POST /api/v1/reviewers/`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+ "expertise_keywords": ["machine learning", "natural language processing"],
+ "expertise_description": "10 years experience in NLP research",
+ "institution": "University of Science",
+ "department": "Computer Science",
+ "orcid_id": "0000-0001-2345-6789",
+ "max_assignments": 5
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+ "id": 1,
+ "user_id": 5,
+ "username": "reviewer1",
+ "email": "reviewer@university.edu",
+ "expertise_keywords": ["machine learning", "natural language processing"],
+ "is_available": true,
+ "current_assignments": 0,
+ "max_assignments": 5,
+ "available_slots": 5
+}
+```
+
+---
+
+### Get Reviewer Suggestions
+
+Get AI-powered reviewer suggestions for a manuscript.
+
+**Endpoint:** `GET /api/v1/reviewers/analysis/{analysis_id}/suggestions`
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `top_n` (integer, optional): Max suggestions (1-20, default: 5)
+- `min_score` (float, optional): Min match score (0.0-1.0, default: 0.1)
+
+**Response:** `200 OK`
+```json
+{
+ "analysis_id": 123,
+ "manuscript_keywords": ["machine learning", "classification"],
+ "suggestions": [
+  {
+   "reviewer_id": 1,
+   "user_id": 5,
+   "username": "expert_reviewer",
+   "match_score": 0.85,
+   "matched_keywords": ["machine learning"],
+   "match_method": "hybrid",
+   "institution": "MIT",
+   "available_slots": 3
+  }
+ ],
+ "total_available_reviewers": 15
+}
+```
+
+---
+
+### Assign Reviewer
+
+Assign a reviewer to a manuscript analysis.
+
+**Endpoint:** `POST /api/v1/reviewers/analysis/{analysis_id}/assign/{reviewer_id}`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+ "send_invitation": true,
+ "message": "Please review this manuscript on ML techniques."
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "id": 1,
+ "analysis_id": 123,
+ "reviewer_id": 5,
+ "reviewer_username": "expert_reviewer",
+ "match_score": 0.85,
+ "matched_keywords": ["machine learning"],
+ "status": "invited",
+ "created_at": "2025-12-22T10:00:00Z",
+ "invited_at": "2025-12-22T10:00:00Z"
+}
+```
+
+---
+
+### List Reviewers
+
+List all available reviewers.
+
+**Endpoint:** `GET /api/v1/reviewers/`
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `page` (integer, optional): Page number (default: 1)
+- `page_size` (integer, optional): Items per page (1-100, default: 20)
+- `available_only` (boolean, optional): Only show available reviewers
+- `keyword` (string, optional): Filter by expertise keyword
+
+---
+
+## Enhanced Analysis Response
+
+The analysis response now includes additional enhancement fields:
+
+```json
+{
+ "summary": "AI-generated summary...",
+ "keywords": ["keyword1", "keyword2"],
+ "language_quality": {
+  "word_count": 1250,
+  "readability_score": 68.5
+ },
+ "metadata": {...},
+ "language": {
+  "code": "en",
+  "name": "English",
+  "confidence": 0.98
+ },
+ "plagiarism": {
+  "is_plagiarized": false,
+  "overall_similarity": 0.12
+ },
+ "citation_analysis": {
+  "total_citations": 25,
+  "format_detected": "apa",
+  "format_consistency": 92.0
+ }
+}
+```
+
+---
+
 ## Rate Limiting
 
 - **Anonymous users**: 60 requests/hour

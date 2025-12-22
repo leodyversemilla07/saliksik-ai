@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # Project
     PROJECT_NAME: str = "Saliksik AI"
-    VERSION: str = "2.0.0"
+    VERSION: str = "2.1.0"  # All enhancements implemented
     DEBUG: bool = True
     
     # Database
@@ -47,6 +47,17 @@ class Settings(BaseSettings):
     
     # AI Configuration
     AI_LIGHT_MODE: bool = False
+    
+    # Enhancement Feature Flags
+    ENABLE_PLAGIARISM_CHECK: bool = True
+    PLAGIARISM_THRESHOLD: float = 0.5
+    ENABLE_CITATION_ANALYSIS: bool = True
+    ENABLE_REVIEWER_MATCHING: bool = True
+    
+    # Multi-Language Settings
+    SUPPORTED_LANGUAGES: str = "en,es,fr,de"  # Comma-separated
+    DEFAULT_LANGUAGE: str = "en"
+    AUTO_DETECT_LANGUAGE: bool = True
     
     class Config:
         env_file = ".env"

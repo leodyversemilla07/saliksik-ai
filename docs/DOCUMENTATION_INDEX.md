@@ -44,6 +44,26 @@ Complete documentation for Saliksik AI
  - Pull request process
  - Reporting issues
 
+### Roadmap & Implementation
+
+5. **[ENHANCEMENT_ROADMAP.md](ENHANCEMENT_ROADMAP.md)** - Enhancement tracking
+ - ✅ Plagiarism Detection (Complete)
+ - ✅ Citation Analysis (Complete)
+ - ✅ Reviewer Matching (Complete)
+ - ✅ Multi-Language Support (Complete)
+ - Implementation progress notes
+
+6. **[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)** - Technical implementation details
+ - File structure and components
+ - API endpoints created
+ - Dependencies added
+ - Configuration options
+
+7. **[TASK_CHECKLIST.md](TASK_CHECKLIST.md)** - Development task tracking
+ - Phase-by-phase task breakdown
+ - Completion status for all items
+ - Post-implementation tasks
+
 ## Configuration
 
 - **[.env.example](../.env.example)** - Environment variables template
@@ -128,5 +148,5 @@ Found an issue or have a suggestion?
 
 ---
 
-**Last Updated**: 2025-11-07 
-**Documentation Version**: 2.0.1
+**Last Updated**: 2025-12-22  
+**Documentation Version**: 2.1.0 (All Enhancements Complete)
