@@ -133,7 +133,7 @@ Public endpoint for testing (no authentication required).
 
 **Authentication:** Not required
 
-**Request Body:**
+**Request Body (Text):**
 ```json
 {
  "manuscript_text": "string (50-5000 chars, required)"
@@ -187,10 +187,10 @@ Analyze manuscript (text or PDF) with full features.
 **Request Parameters:**
 
 Either:
-- `manuscript_text` (form field): Text content (50-50000 chars)
+- `manuscript_text` (form field): Text content (50-250000 chars)
 
 Or:
-- `manuscript_file` (file upload): PDF file (max 10MB)
+- `manuscript_file` (file upload): PDF file (max 50MB)
 
 **Response:** `200 OK`
 ```json
@@ -223,7 +223,7 @@ Or:
 **Error Responses:**
 - `400 Bad Request` - No text or file provided
 - `400 Bad Request` - Invalid file type (PDF only)
-- `400 Bad Request` - File too large (> 10MB)
+- `400 Bad Request` - File too large (> 50MB)
 - `400 Bad Request` - Text too short or long
 - `401 Unauthorized` - Invalid or missing token
 - `500 Internal Server Error` - Processing error

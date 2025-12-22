@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     ]
     
     # File Upload
-    MAX_FILE_SIZE_MB: int = 10
+    MAX_FILE_SIZE_MB: int = 50
     
     # Rate Limiting
     RATE_LIMIT_ANON: str = "60/hour"

@@ -1,6 +1,20 @@
+# Docker Compose for Saliksik AI
+# 
+# Provides PostgreSQL and Redis for local development.
+# Run the FastAPI app locally with: .\.venv\Scripts\uvicorn.exe main:app --reload
+#
+# Usage:
+#   Start services:  docker-compose up -d
+#   Stop services:   docker-compose down
+#   View logs:       docker-compose logs -f
+
 services:
+  # ============================================
+  # Database - PostgreSQL
+  # ============================================
   db:
     image: postgres:15-alpine
+    container_name: saliksik-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-saliksik_ai}
       POSTGRES_USER: ${POSTGRES_USER:-saliksik}
@@ -16,8 +30,12 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ============================================
+  # Cache - Redis
+  # ============================================
   redis:
     image: redis:7-alpine
+    container_name: saliksik-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -28,49 +46,6 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
-
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "${WEB_PORT:-8000}:8000"
-    environment:
-      - DEBUG=${DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
-    volumes:
-      - .:/app
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  celery:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      - DEBUG=${DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: celery -A app.tasks worker -l info
-    restart: unless-stopped
-    profiles:
-      - celery
-      - production
 
 volumes:
   postgres_data:

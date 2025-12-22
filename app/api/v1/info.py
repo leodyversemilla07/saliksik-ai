@@ -64,7 +64,7 @@ async def api_info():
             },
             "authenticated": {
                 "max_file_size": f"{settings.MAX_FILE_SIZE_MB}MB",
-                "max_text_length": 50000,
+                "max_text_length": 250000,
                 "rate_limit": settings.RATE_LIMIT_USER
             }
         },

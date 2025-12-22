@@ -10,7 +10,7 @@ from app.schemas.citation import CitationAnalysisResult
 
 class AnalysisRequest(BaseModel):
     """Analysis request schema."""
-    manuscript_text: str = Field(..., min_length=50, max_length=50000)
+    manuscript_text: str = Field(..., min_length=50, max_length=250000)  # Approx 40k words
 
 
 class DemoAnalysisRequest(BaseModel):
