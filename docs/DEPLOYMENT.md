@@ -2,7 +2,7 @@
 
 Production deployment guide for Saliksik AI
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Prerequisites](#prerequisites)
 - [Environment Setup](#environment-setup)
@@ -133,9 +133,9 @@ from app.core.security import get_password_hash
 
 db = SessionLocal()
 admin = User(
-    username='admin',
-    email='admin@yourdomain.com',
-    hashed_password=get_password_hash('your-admin-password')
+ username='admin',
+ email='admin@yourdomain.com',
+ hashed_password=get_password_hash('your-admin-password')
 )
 db.add(admin)
 db.commit()
@@ -155,7 +155,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Install dependencies
 sudo apt install -y python3.12 python3.12-venv python3-pip \
-  postgresql-15 redis-server nginx git
+ postgresql-15 redis-server nginx git
 ```
 
 ### 2. Create Application User
@@ -227,11 +227,11 @@ WorkingDirectory=/home/saliksik/saliksik-ai
 Environment="PATH=/home/saliksik/saliksik-ai/.venv/bin"
 EnvironmentFile=/home/saliksik/saliksik-ai/.env
 ExecStart=/home/saliksik/saliksik-ai/.venv/bin/gunicorn main:app \
-  --workers 4 \
-  --worker-class uvicorn.workers.UvicornWorker \
-  --bind 127.0.0.1:8000 \
-  --access-logfile /var/log/saliksik-ai/access.log \
-  --error-logfile /var/log/saliksik-ai/error.log
+ --workers 4 \
+ --worker-class uvicorn.workers.UvicornWorker \
+ --bind 127.0.0.1:8000 \
+ --access-logfile /var/log/saliksik-ai/access.log \
+ --error-logfile /var/log/saliksik-ai/error.log
 Restart=always
 RestartSec=10
 
@@ -265,42 +265,42 @@ Create `/etc/nginx/sites-available/saliksik-ai`:
 
 ```nginx
 server {
-    listen 80;
-    server_name api.yourdomain.com;
+ listen 80;
+ server_name api.yourdomain.com;
 
-    # Rate limiting
-    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-    limit_req zone=api_limit burst=20 nodelay;
+ # Rate limiting
+ limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+ limit_req zone=api_limit burst=20 nodelay;
 
-    # Client body size
-    client_max_body_size 10M;
+ # Client body size
+ client_max_body_size 10M;
 
-    # Logging
-    access_log /var/log/nginx/saliksik-ai-access.log;
-    error_log /var/log/nginx/saliksik-ai-error.log;
+ # Logging
+ access_log /var/log/nginx/saliksik-ai-access.log;
+ error_log /var/log/nginx/saliksik-ai-error.log;
 
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+ location / {
+ proxy_pass http://127.0.0.1:8000;
+ proxy_set_header Host $host;
+ proxy_set_header X-Real-IP $remote_addr;
+ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+ proxy_set_header X-Forwarded-Proto $scheme;
 
-        # Timeouts
-        proxy_connect_timeout 300s;
-        proxy_send_timeout 300s;
-        proxy_read_timeout 300s;
+ # Timeouts
+ proxy_connect_timeout 300s;
+ proxy_send_timeout 300s;
+ proxy_read_timeout 300s;
 
-        # WebSocket support (if needed)
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
+ # WebSocket support (if needed)
+ proxy_http_version 1.1;
+ proxy_set_header Upgrade $http_upgrade;
+ proxy_set_header Connection "upgrade";
+ }
 
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
+ # Security headers
+ add_header X-Frame-Options "SAMEORIGIN" always;
+ add_header X-Content-Type-Options "nosniff" always;
+ add_header X-XSS-Protection "1; mode=block" always;
 }
 ```
 
@@ -335,26 +335,26 @@ Update Nginx config:
 
 ```nginx
 server {
-    listen 443 ssl http2;
-    server_name api.yourdomain.com;
+ listen 443 ssl http2;
+ server_name api.yourdomain.com;
 
-    ssl_certificate /path/to/fullchain.pem;
-    ssl_certificate_key /path/to/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
+ ssl_certificate /path/to/fullchain.pem;
+ ssl_certificate_key /path/to/privkey.pem;
+ ssl_protocols TLSv1.2 TLSv1.3;
+ ssl_ciphers HIGH:!aNULL:!MD5;
+ ssl_prefer_server_ciphers on;
 
-    # HSTS
-    add_header Strict-Transport-Security "max-age=31536000" always;
+ # HSTS
+ add_header Strict-Transport-Security "max-age=31536000" always;
 
-    # ... rest of configuration
+ # ... rest of configuration
 }
 
 # Redirect HTTP to HTTPS
 server {
-    listen 80;
-    server_name api.yourdomain.com;
-    return 301 https://$server_name$request_uri;
+ listen 80;
+ server_name api.yourdomain.com;
+ return 301 https://$server_name$request_uri;
 }
 ```
 
@@ -383,8 +383,8 @@ cat > /usr/local/bin/check-saliksik.sh << 'EOF'
 #!/bin/bash
 response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
 if [ $response != "200" ]; then
-    echo "Health check failed with status $response"
-    sudo systemctl restart saliksik-ai
+ echo "Health check failed with status $response"
+ sudo systemctl restart saliksik-ai
 fi
 EOF
 
@@ -423,7 +423,7 @@ BACKUP_DIR="/var/backups/saliksik-ai"
 mkdir -p $BACKUP_DIR
 
 pg_dump -U saliksik_user saliksik_ai_prod | \
-  gzip > $BACKUP_DIR/db_backup_$DATE.sql.gz
+ gzip > $BACKUP_DIR/db_backup_$DATE.sql.gz
 
 # Keep only last 30 days
 find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +30 -delete
@@ -440,7 +440,7 @@ crontab -e
 
 ```bash
 gunzip < /var/backups/saliksik-ai/db_backup_YYYYMMDD_HHMMSS.sql.gz | \
-  psql -U saliksik_user saliksik_ai_prod
+ psql -U saliksik_user saliksik_ai_prod
 ```
 
 ---

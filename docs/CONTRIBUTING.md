@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to Saliksik AI! This document provides guidelines and instructions for contributing.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
@@ -57,10 +57,10 @@ We pledge to make participation in this project a harassment-free experience for
 
 1. Fork the repository on GitHub
 2. Clone your fork locally:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/saliksik-ai.git
-   cd saliksik-ai
-   ```
+ ```bash
+ git clone https://github.com/YOUR_USERNAME/saliksik-ai.git
+ cd saliksik-ai
+ ```
 
 ---
 
@@ -70,7 +70,7 @@ We pledge to make participation in this project a harassment-free experience for
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate # Windows: .venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
@@ -78,7 +78,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 ```bash
 # Install in editable mode with dev dependencies
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # If exists
+# pip install -r requirements-dev.txt # If exists
 ```
 
 ### 3. Install AI Models
@@ -151,11 +151,11 @@ Branch naming conventions:
 - Add tests for new features
 - Update existing tests if needed
 - Ensure all tests pass:
-  ```bash
-  python test_migration.py
-  # or
-  pytest  # If using pytest
-  ```
+ ```bash
+ python tests/test_system.py
+ # or
+ pytest # If using pytest
+ ```
 
 ### 4. Update Documentation
 
@@ -163,7 +163,6 @@ If your changes affect:
 - **API endpoints** → Update `API_REFERENCE.md`
 - **Installation** → Update `README.md`
 - **Deployment** → Update `DEPLOYMENT.md`
-- **Usage** → Update `QUICKSTART_FASTAPI.md`
 
 ---
 
@@ -186,26 +185,26 @@ isort app/ main.py
 ```python
 # Always include type hints
 def process_manuscript(text: str, max_length: int = 5000) -> Dict[str, Any]:
-    """Process manuscript text and return analysis."""
-    pass
+ """Process manuscript text and return analysis."""
+ pass
 ```
 
 **Docstrings:**
 ```python
 def analyze_text(text: str) -> dict:
-    """
-    Analyze manuscript text using AI models.
-    
-    Args:
-        text: The manuscript text to analyze
-        
-    Returns:
-        Dictionary containing summary, keywords, and quality metrics
-        
-    Raises:
-        ValueError: If text is too short or empty
-    """
-    pass
+ """
+ Analyze manuscript text using AI models.
+ 
+ Args:
+ text: The manuscript text to analyze
+ 
+ Returns:
+ Dictionary containing summary, keywords, and quality metrics
+ 
+ Raises:
+ ValueError: If text is too short or empty
+ """
+ pass
 ```
 
 ### FastAPI Best Practices
@@ -214,12 +213,12 @@ def analyze_text(text: str) -> dict:
 ```python
 @router.post("/analysis", response_model=AnalysisResponse)
 async def analyze_manuscript(
-    request: AnalysisRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+ request: AnalysisRequest,
+ current_user: User = Depends(get_current_user),
+ db: Session = Depends(get_db)
 ):
-    """Analyze manuscript with proper dependency injection."""
-    pass
+ """Analyze manuscript with proper dependency injection."""
+ pass
 ```
 
 **Error Handling:**
@@ -227,22 +226,22 @@ async def analyze_manuscript(
 from fastapi import HTTPException, status
 
 if not manuscript_text:
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Manuscript text is required"
-    )
+ raise HTTPException(
+ status_code=status.HTTP_400_BAD_REQUEST,
+ detail="Manuscript text is required"
+ )
 ```
 
 ### File Organization
 
 ```
 app/
-├── api/v1/          # API routes only
-├── core/            # Core utilities, config
-├── models/          # Database models
-├── schemas/         # Pydantic schemas
-├── services/        # Business logic
-└── utils/           # Helper functions
+├── api/v1/ # API routes only
+├── core/ # Core utilities, config
+├── models/ # Database models
+├── schemas/ # Pydantic schemas
+├── services/ # Business logic
+└── utils/ # Helper functions
 ```
 
 ---
@@ -253,10 +252,10 @@ app/
 
 ```bash
 # Run all tests
-python test_migration.py
+python tests/test_system.py
 
 # Run specific test
-python -m pytest tests/test_auth.py -v
+python -m pytest tests/test_system.py -v
 
 # Run with coverage
 python -m pytest --cov=app tests/
@@ -266,17 +265,17 @@ python -m pytest --cov=app tests/
 
 ```python
 def test_user_registration():
-    """Test user registration endpoint."""
-    response = client.post(
-        "/api/v1/auth/register",
-        json={
-            "username": "testuser",
-            "email": "test@example.com",
-            "password": "testpass123"
-        }
-    )
-    assert response.status_code == 201
-    assert "access_token" in response.json()
+ """Test user registration endpoint."""
+ response = client.post(
+ "/api/v1/auth/register",
+ json={
+ "username": "testuser",
+ "email": "test@example.com",
+ "password": "testpass123"
+ }
+ )
+ assert response.status_code == 201
+ assert "access_token" in response.json()
 ```
 
 ---
@@ -355,7 +354,7 @@ Brief description of changes
 Once approved:
 - Maintainers will merge your PR
 - Your branch will be deleted
-- Celebrate! 🎉
+- Celebrate! 
 
 ---
 
@@ -437,10 +436,10 @@ Any other relevant information, mockups, examples.
 
 ## Questions?
 
-- 💬 [GitHub Discussions](https://github.com/yourusername/saliksik-ai/discussions)
-- 📧 Email: dev@example.com
-- 📖 Documentation: See `/docs`
+- [GitHub Discussions](https://github.com/yourusername/saliksik-ai/discussions)
+- Email: dev@example.com
+- Documentation: See `/docs`
 
 ---
 
-**Thank you for contributing to Saliksik AI!** 🚀
+**Thank you for contributing to Saliksik AI!**
