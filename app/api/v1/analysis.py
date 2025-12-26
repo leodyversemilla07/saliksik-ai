@@ -2,7 +2,8 @@
 Analysis endpoints for manuscript processing.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from typing import Optional
 import time
 import logging
@@ -33,7 +34,7 @@ pre_reviewer = ManuscriptPreReviewer()
 async def pre_review(
     manuscript_text: Optional[str] = Form(None),
     manuscript_file: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -92,8 +93,8 @@ async def pre_review(
             status='PENDING'
         )
         db.add(analysis)
-        db.commit()
-        db.refresh(analysis)
+        await db.commit()
+        await db.refresh(analysis)
         
         # Trigger background task
         from app.tasks.analysis import process_manuscript_task
@@ -101,7 +102,7 @@ async def pre_review(
         
         # Update with task_id
         analysis.task_id = task.id
-        db.commit()
+        await db.commit()
         
         return {
             "task_id": task.id,
@@ -123,14 +124,16 @@ async def pre_review(
 @router.get("/status/{task_id}")
 async def get_analysis_status(
     task_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Check the status of an analysis task."""
-    analysis = db.query(ManuscriptAnalysis).filter(
+    stmt = select(ManuscriptAnalysis).filter(
         ManuscriptAnalysis.task_id == task_id,
         ManuscriptAnalysis.user_id == current_user.id
-    ).first()
+    )
+    result = await db.execute(stmt)
+    analysis = result.scalar_one_or_none()
     
     if not analysis:
         raise HTTPException(
@@ -201,7 +204,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
         )
         
         # Cache for 2 hours
-        AIResultCache.cache_result(request.manuscript_text, response.dict(), ttl=7200)
+        AIResultCache.cache_result(request.manuscript_text, response.model_dump(), ttl=7200)
         
         return response
         
@@ -217,7 +220,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
 async def get_history(
     page: int = 1,
     page_size: int = 20,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get user's analysis history with pagination."""
@@ -226,12 +229,20 @@ async def get_history(
     offset = (page - 1) * page_size
     
     # Query analyses
-    query = db.query(ManuscriptAnalysis).filter(
+    query = select(ManuscriptAnalysis).filter(
         ManuscriptAnalysis.user_id == current_user.id
     ).order_by(ManuscriptAnalysis.created_at.desc())
     
-    total_count = query.count()
-    analyses = query.offset(offset).limit(page_size).all()
+    # Count total
+    count_stmt = select(func.count()).select_from(ManuscriptAnalysis).filter(
+        ManuscriptAnalysis.user_id == current_user.id
+    )
+    total_count_result = await db.execute(count_stmt)
+    total_count = total_count_result.scalar()
+
+    # Get page
+    result = await db.execute(query.offset(offset).limit(page_size))
+    analyses = result.scalars().all()
     
     # Build response
     results = []
