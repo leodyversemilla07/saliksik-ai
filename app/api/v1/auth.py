@@ -2,7 +2,9 @@
 Authentication endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, or_
 from datetime import datetime
 from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
@@ -16,13 +18,15 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister, db: Session = Depends(get_db)):
+async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register a new user."""
     
     # Check if user exists
-    existing_user = db.query(User).filter(
-        (User.username == user_data.username) | (User.email == user_data.email)
-    ).first()
+    stmt = select(User).filter(
+        or_(User.username == user_data.username, User.email == user_data.email)
+    )
+    result = await db.execute(stmt)
+    existing_user = result.scalar_one_or_none()
     
     if existing_user:
         raise HTTPException(
@@ -39,8 +43,8 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     )
     
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
     
     # Create access token
     access_token = create_access_token(data={"sub": str(new_user.id)})
@@ -49,18 +53,23 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.from_orm(new_user)
+        user=UserResponse.model_validate(new_user)
     )
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    """Authenticate user and return token."""
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+    """
+    Authenticate user and return token.
+    Compatible with OAuth2 form data (Swagger UI).
+    """
     
     # Find user
-    user = db.query(User).filter(User.username == credentials.username).first()
+    stmt = select(User).filter(User.username == form_data.username)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
     
-    if not user or not verify_password(credentials.password, user.hashed_password):
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -69,7 +78,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
     
     # Update last login
     user.last_login = datetime.utcnow()
-    db.commit()
+    await db.commit()
     
     # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
@@ -78,11 +87,11 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
     
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.from_orm(user)
+        user=UserResponse.model_validate(user)
     )
 
 
 @router.get("/profile", response_model=UserResponse)
 async def get_profile(current_user: User = Depends(get_current_user)):
     """Get current user profile."""
-    return UserResponse.from_orm(current_user)
+    return UserResponse.model_validate(current_user)

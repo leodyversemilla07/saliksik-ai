@@ -1,7 +1,7 @@
 """
 Pydantic schemas for citation analysis.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 
 
@@ -17,8 +17,7 @@ class Citation(BaseModel):
     issues: List[str] = Field(default_factory=list, description="Format issues found")
     line_number: Optional[int] = Field(None, description="Line number in document")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InTextCitation(BaseModel):
@@ -29,8 +28,7 @@ class InTextCitation(BaseModel):
     page: Optional[str] = Field(None, description="Page number if specified")
     position: int = Field(0, description="Character position in text")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CitationIssue(BaseModel):
@@ -43,8 +41,7 @@ class CitationIssue(BaseModel):
     citation_text: Optional[str] = Field(None, description="Relevant citation text")
     line_number: Optional[int] = Field(None, description="Line number if applicable")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CitationAnalysisResult(BaseModel):
@@ -78,8 +75,7 @@ class CitationAnalysisResult(BaseModel):
         description="All issues found during analysis"
     )
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CitationAnalysisRequest(BaseModel):
