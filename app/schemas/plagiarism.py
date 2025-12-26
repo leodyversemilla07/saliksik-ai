@@ -1,7 +1,7 @@
 """
 Pydantic schemas for plagiarism detection.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 
 
@@ -23,8 +23,7 @@ class SimilarDocument(BaseModel):
         description="Original filename of the similar document"
     )
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PlagiarismResult(BaseModel):
@@ -58,8 +57,7 @@ class PlagiarismResult(BaseModel):
         description="Number of documents compared against"
     )
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PlagiarismCheckRequest(BaseModel):

@@ -1,7 +1,7 @@
 """
 Pydantic schemas for reviewer matching.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
@@ -98,8 +98,7 @@ class ReviewerResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ReviewerSuggestion(BaseModel):
@@ -114,8 +113,7 @@ class ReviewerSuggestion(BaseModel):
     expertise_keywords: List[str] = Field(default_factory=list)
     available_slots: int = 0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ReviewerMatchResponse(BaseModel):
@@ -131,8 +129,7 @@ class ReviewerMatchResponse(BaseModel):
     invited_at: Optional[datetime] = None
     responded_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ReviewerAssignRequest(BaseModel):
