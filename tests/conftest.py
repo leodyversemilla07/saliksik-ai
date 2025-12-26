@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # MOCKING HEAVY DEPENDENCIES BEFORE IMPORTS
 mocks = [
@@ -24,12 +24,21 @@ for m in mocks:
     sys.modules[m] = MagicMock()
 
 # Mock internal services that depend on ML
-sys.modules["app.services.ai_processor"] = MagicMock()
+ai_processor_mock = MagicMock()
+# Configure the mock to return serializable data
+ai_processor_mock.ManuscriptPreReviewer.return_value.generate_report.return_value = {
+    "summary": "This is a mocked summary.",
+    "keywords": ["mock", "test"],
+    "language_quality": {"score": 100, "issues": []}
+}
+sys.modules["app.services.ai_processor"] = ai_processor_mock
 sys.modules["app.services.reviewer_matcher"] = MagicMock()
 sys.modules["app.services.plagiarism_checker"] = MagicMock()
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.database import Base, get_db
 
@@ -38,6 +47,15 @@ from app.models.user import User
 
 # Use SQLite for testing
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_suite.db"
+
+# Configure Celery for testing (Eager mode)
+from app.celery_app import celery_app
+celery_app.conf.update(
+    broker_url='memory://',
+    result_backend='cache+memory://',
+    task_always_eager=True,
+    task_eager_propagates=True
+)
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -62,6 +80,14 @@ async def db_engine():
     if os.path.exists("./test_suite.db"):
         os.remove("./test_suite.db")
 
+@pytest.fixture(scope="session")
+def sync_db_engine():
+    """Synchronous engine for Celery tasks in eager mode."""
+    # Must point to the same file as TEST_DATABASE_URL
+    SYNC_TEST_DB_URL = "sqlite:///./test_suite.db"
+    engine = create_engine(SYNC_TEST_DB_URL, echo=False)
+    return engine
+
 @pytest.fixture(scope="function")
 async def db_session(db_engine):
     async_session = async_sessionmaker(
@@ -77,14 +103,23 @@ async def db_session(db_engine):
         await session.rollback()
 
 @pytest.fixture(scope="function")
-async def client(db_session):
+async def client(db_session, db_engine, sync_db_engine):
     # Override the get_db dependency to use our test session
     async def override_get_db():
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(app=app, base_url="http://test") as c:
-        yield c
+    # Patch the engine used in main.py's lifespan
+    # AND patch the SessionLocal used by Celery tasks to use the sync test engine
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_db_engine)
+
+    with patch("main.engine", db_engine), \
+         patch("app.core.database.SessionLocal", TestSessionLocal), \
+         patch("app.tasks.analysis.SessionLocal", TestSessionLocal):
+
+        from httpx import ASGITransport
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            yield c
 
     app.dependency_overrides.clear()
