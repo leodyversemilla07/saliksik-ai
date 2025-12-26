@@ -1,8 +1,8 @@
 """
 Application configuration using Pydantic Settings.
 """
-from pydantic_settings import BaseSettings
-from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Optional
 import os
 
 
@@ -15,8 +15,21 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Database
-    DATABASE_URL: str = "postgresql://saliksik:saliksik123@localhost:5432/saliksik_ai_dev"
+    # Async URL for FastAPI endpoints (postgresql+asyncpg://...)
+    DATABASE_URL: str = "postgresql+asyncpg://saliksik:saliksik123@localhost:5432/saliksik_ai_dev"
     
+    # Sync URL for Celery/Alebmic (postgresql://...)
+    # We can default this to the sync version of the same DB
+    SQLALCHEMY_DATABASE_URI: Optional[str] = None
+
+    @property
+    def sync_database_url(self) -> str:
+        """Fallback to generating sync URL from async one if not provided."""
+        if self.SQLALCHEMY_DATABASE_URI:
+            return self.SQLALCHEMY_DATABASE_URI
+        # Naive conversion: replace postgresql+asyncpg with postgresql
+        return self.DATABASE_URL.replace("+asyncpg", "").replace("+aiosqlite", "")
+
     # Security
     SECRET_KEY: str = "django-insecure-change-me-in-production"
     ALGORITHM: str = "HS256"
@@ -59,10 +72,11 @@ class Settings(BaseSettings):
     DEFAULT_LANGUAGE: str = "en"
     AUTO_DETECT_LANGUAGE: bool = True
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
 
 
 settings = Settings()

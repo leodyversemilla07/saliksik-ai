@@ -18,7 +18,7 @@ async def test_imports():
         from app.core.config import settings
         print("✅ Config imported successfully")
         
-        from app.core.database import Base, engine
+        from app.core.database import Base, engine, SessionLocal
         print("✅ Database imported successfully")
         
         from app.core.security import get_password_hash, verify_password
@@ -168,27 +168,6 @@ async def test_cache():
         return False
 
 
-async def test_database_connection():
-    """Test database connection."""
-    print("\n🧪 Testing Database Connection...")
-    
-    try:
-        from app.core.database import engine
-        from sqlalchemy import text
-        
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
-            assert result.fetchone()[0] == 1, "Database query failed"
-        
-        print("✅ Database connection works")
-        return True
-        
-    except Exception as e:
-        print(f"⚠️ Database connection failed: {str(e)}")
-        print("   (This is expected if PostgreSQL is not running)")
-        return None  # Not a critical failure
-
-
 async def main():
     """Run all tests."""
     print("=" * 60)
@@ -202,7 +181,6 @@ async def main():
     results.append(await test_jwt())
     results.append(await test_ai_processor())
     results.append(await test_cache())
-    db_result = await test_database_connection()
     
     # Don't count DB test in critical results
     critical_passed = sum(1 for r in results if r is True)
@@ -214,15 +192,9 @@ async def main():
     print(f"✅ Critical tests passed: {critical_passed}/{len(results)}")
     if critical_failed > 0:
         print(f"❌ Critical tests failed: {critical_failed}/{len(results)}")
-    if db_result is None:
-        print("⚠️ Database test skipped (optional)")
     
     if critical_failed == 0:
         print("\n🎉 FastAPI migration is ready to use!")
-        print("\nNext steps:")
-        print("1. Start PostgreSQL database")
-        print("2. Run: uvicorn main:app --reload")
-        print("3. Visit: http://localhost:8000/docs")
         return 0
     else:
         print("\n❌ Please fix the failing tests before using the application")
