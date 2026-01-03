@@ -22,6 +22,7 @@ from app.schemas.analysis import (
     AnalysisMetadata
 )
 from app.services.ai_processor import ManuscriptPreReviewer
+from app.core.security_utils import sanitize_manuscript_text, sanitize_filename
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -70,8 +71,11 @@ async def pre_review(
                     detail="Unable to extract text from PDF"
                 )
         
+        # Sanitize manuscript text
+        manuscript_text = sanitize_manuscript_text(manuscript_text)
+        
         # Validate text length
-        if len(manuscript_text.strip()) < 50:
+        if len(manuscript_text) < 50:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Text too short for meaningful analysis (minimum 50 characters)"
@@ -87,7 +91,7 @@ async def pre_review(
         # Create initial record
         analysis = ManuscriptAnalysis(
             user_id=current_user.id,
-            original_filename=manuscript_file.filename if manuscript_file else None,
+            original_filename=sanitize_filename(manuscript_file.filename) if manuscript_file else None,
             input_type='pdf' if manuscript_file else 'text',
             manuscript_text=manuscript_text[:10000],
             status='PENDING'
@@ -177,9 +181,18 @@ async def demo_analysis(request: DemoAnalysisRequest):
     """
     start_time = time.time()
     
+    # Sanitize input
+    manuscript_text = sanitize_manuscript_text(request.manuscript_text)
+    
+    if len(manuscript_text) < 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Text too short for meaningful analysis (minimum 50 characters)"
+        )
+    
     try:
         # Check cache
-        cached_result = AIResultCache.get_cached_result(request.manuscript_text)
+        cached_result = AIResultCache.get_cached_result(manuscript_text)
         if cached_result:
             logger.info("Cache hit for demo request")
             cached_result["metadata"]["cached"] = True
@@ -187,8 +200,8 @@ async def demo_analysis(request: DemoAnalysisRequest):
             return cached_result
         
         # Generate analysis
-        logger.info(f"Processing demo manuscript ({len(request.manuscript_text)} chars)")
-        report = pre_reviewer.generate_report(request.manuscript_text)
+        logger.info(f"Processing demo manuscript ({len(manuscript_text)} chars)")
+        report = pre_reviewer.generate_report(manuscript_text)
         processing_time = time.time() - start_time
         
         response = AnalysisResponse(
@@ -196,7 +209,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
             keywords=report['keywords'],
             language_quality=LanguageQuality(**report['language_quality']),
             metadata=AnalysisMetadata(
-                input_length=len(request.manuscript_text),
+                input_length=len(manuscript_text),
                 processing_time=round(processing_time, 2),
                 cached=False,
                 demo=True
@@ -204,7 +217,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
         )
         
         # Cache for 2 hours
-        AIResultCache.cache_result(request.manuscript_text, response.model_dump(), ttl=7200)
+        AIResultCache.cache_result(manuscript_text, response.model_dump(), ttl=7200)
         
         return response
         

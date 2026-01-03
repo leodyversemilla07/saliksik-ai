@@ -27,6 +27,7 @@ from app.schemas.reviewer import (
     ReviewerSuggestionsResponse
 )
 from app.services.reviewer_matcher import get_reviewer_matcher
+from app.core.security_utils import sanitize_keywords, sanitize_string
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -81,21 +82,27 @@ async def create_reviewer_profile(
         )
     
     try:
+        # Sanitize inputs
+        clean_keywords = sanitize_keywords(request.expertise_keywords)
+        clean_description = sanitize_string(request.expertise_description, max_length=1000) if request.expertise_description else None
+        clean_institution = sanitize_string(request.institution, max_length=255) if request.institution else None
+        clean_department = sanitize_string(request.department, max_length=255) if request.department else None
+        
         # Create expertise embedding
         matcher = get_reviewer_matcher()
         embedding = matcher.create_expertise_embedding(
-            request.expertise_keywords,
-            request.expertise_description
+            clean_keywords,
+            clean_description
         )
         
         # Create reviewer profile
         reviewer = Reviewer(
             user_id=current_user.id,
-            expertise_keywords=request.expertise_keywords,
-            expertise_description=request.expertise_description,
+            expertise_keywords=clean_keywords,
+            expertise_description=clean_description,
             expertise_embedding=embedding,
-            institution=request.institution,
-            department=request.department,
+            institution=clean_institution,
+            department=clean_department,
             orcid_id=request.orcid_id,
             max_assignments=request.max_assignments
         )

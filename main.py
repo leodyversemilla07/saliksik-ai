@@ -9,6 +9,7 @@ from app.core.database import engine, Base
 from app.core.rate_limit import RateLimitMiddleware
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging, get_logger, RequestLoggingMiddleware
+from app.core.security_utils import RequestSizeLimitMiddleware
 from app.api.v1 import api_router
 
 # Configure structured logging (use JSON in production)
@@ -56,6 +57,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request size limit middleware (DoS protection)
+app.add_middleware(RequestSizeLimitMiddleware)
 
 # Request logging middleware (adds request ID and timing)
 app.add_middleware(RequestLoggingMiddleware)

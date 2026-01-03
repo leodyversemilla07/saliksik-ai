@@ -11,6 +11,7 @@ from app.core.security import verify_password, get_password_hash, create_access_
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin, TokenResponse, UserResponse
 from app.core.deps import get_current_user
+from app.core.security_utils import validate_email, validate_username, validate_password, sanitize_string
 import logging
 import secrets
 
@@ -39,9 +40,26 @@ async def generate_api_key(
 async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register a new user."""
     
+    # Validate and sanitize inputs
+    is_valid, error = validate_username(user_data.username)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+    
+    is_valid, error = validate_email(user_data.email)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+    
+    is_valid, error = validate_password(user_data.password)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+    
+    # Sanitize username
+    clean_username = sanitize_string(user_data.username, max_length=50)
+    clean_email = user_data.email.strip().lower()
+    
     # Check if user exists
     stmt = select(User).filter(
-        or_(User.username == user_data.username, User.email == user_data.email)
+        or_(User.username == clean_username, User.email == clean_email)
     )
     result = await db.execute(stmt)
     existing_user = result.scalar_one_or_none()
@@ -55,8 +73,8 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     # Create new user
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
-        username=user_data.username,
-        email=user_data.email,
+        username=clean_username,
+        email=clean_email,
         hashed_password=hashed_password
     )
     
