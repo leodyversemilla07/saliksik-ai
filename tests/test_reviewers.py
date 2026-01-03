@@ -71,7 +71,10 @@ async def test_create_duplicate_reviewer_profile(client, db_session):
     )
     
     assert response.status_code == 400
-    assert "already has a reviewer profile" in response.json()["detail"]
+    # Check response - may be in "detail" (HTTPException) or "error.message" (custom handler)
+    data = response.json()
+    error_msg = data.get("detail") or data.get("error", {}).get("message", "")
+    assert "already has a reviewer profile" in error_msg
 
 
 @pytest.mark.asyncio

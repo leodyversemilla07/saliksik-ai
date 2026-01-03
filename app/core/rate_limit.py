@@ -12,17 +12,24 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 # Try to import Redis
+REDIS_AVAILABLE = False
+redis_client = None
+
 try:
-    import redis
+    import redis as redis_lib
     if settings.REDIS_URL:
-        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
-        REDIS_AVAILABLE = True
-    else:
-        REDIS_AVAILABLE = False
-        redis_client = None
+        try:
+            redis_client = redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
+            # Test connection
+            redis_client.ping()
+            REDIS_AVAILABLE = True
+            logger.info("Redis connection established for rate limiting")
+        except (redis_lib.exceptions.ConnectionError, redis_lib.exceptions.RedisError) as e:
+            logger.warning(f"Redis not available for rate limiting: {e}. Using in-memory fallback.")
+            redis_client = None
+            REDIS_AVAILABLE = False
 except ImportError:
-    REDIS_AVAILABLE = False
-    redis_client = None
+    logger.info("Redis library not installed. Using in-memory rate limiter.")
 
 
 class InMemoryRateLimiter:

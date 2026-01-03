@@ -32,7 +32,15 @@ ai_processor_mock.ManuscriptPreReviewer.return_value.generate_report.return_valu
     "language_quality": {"score": 100, "issues": []}
 }
 sys.modules["app.services.ai_processor"] = ai_processor_mock
-sys.modules["app.services.reviewer_matcher"] = MagicMock()
+
+# Mock reviewer_matcher with proper return values
+reviewer_matcher_mock = MagicMock()
+# create_expertise_embedding should return None (not bytes) since we mock sentence_transformers
+reviewer_matcher_mock.get_reviewer_matcher.return_value.create_expertise_embedding.return_value = None
+reviewer_matcher_mock.get_reviewer_matcher.return_value.calculate_keyword_similarity.return_value = (0.5, ["test"])
+reviewer_matcher_mock.get_reviewer_matcher.return_value.find_matching_reviewers_async.return_value = []
+sys.modules["app.services.reviewer_matcher"] = reviewer_matcher_mock
+
 sys.modules["app.services.plagiarism_checker"] = MagicMock()
 
 import pytest
@@ -76,9 +84,12 @@ async def db_engine():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
-    # Cleanup file
+    # Cleanup file (with retry for Windows file locking)
     if os.path.exists("./test_suite.db"):
-        os.remove("./test_suite.db")
+        try:
+            os.remove("./test_suite.db")
+        except PermissionError:
+            pass  # File may still be locked on Windows, ignore
 
 @pytest.fixture(scope="session")
 def sync_db_engine():

@@ -4,6 +4,7 @@ Reviewer management and matching API endpoints.
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import datetime, timezone
 import logging
@@ -208,7 +209,7 @@ async def list_reviewers(
     - **available_only**: Only show reviewers accepting new assignments
     - **keyword**: Filter by expertise keyword
     """
-    stmt = select(Reviewer)
+    stmt = select(Reviewer).options(selectinload(Reviewer.user))
     
     if available_only:
         stmt = stmt.filter(Reviewer.is_available == True)
@@ -219,8 +220,13 @@ async def list_reviewers(
             Reviewer.expertise_keywords.contains([keyword.lower()])
         )
     
-    # Count total
-    count_stmt = select(func.count()).select_from(stmt.subquery())
+    # Count total (without the selectinload for efficiency)
+    count_base = select(Reviewer)
+    if available_only:
+        count_base = count_base.filter(Reviewer.is_available == True)
+    if keyword:
+        count_base = count_base.filter(Reviewer.expertise_keywords.contains([keyword.lower()]))
+    count_stmt = select(func.count()).select_from(count_base.subquery())
     count_result = await db.execute(count_stmt)
     total_count = count_result.scalar()
     
