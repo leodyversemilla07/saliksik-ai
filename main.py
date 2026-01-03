@@ -3,14 +3,21 @@ FastAPI main application entry point.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 from app.core.config import settings
 from app.core.database import engine, Base
+from app.core.rate_limit import RateLimitMiddleware
+from app.core.exceptions import register_exception_handlers
 from app.api.v1 import api_router
 
 logger = logging.getLogger(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG if settings.DEBUG else logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 
 @asynccontextmanager
@@ -42,6 +49,9 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
+# Register exception handlers
+register_exception_handlers(app)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +60,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting middleware
+app.add_middleware(RateLimitMiddleware)
 
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
