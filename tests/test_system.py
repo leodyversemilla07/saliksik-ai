@@ -13,9 +13,11 @@ async def test_health_check():
         response = await client.get("/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
+        # Status can be "healthy" or "degraded" depending on service availability
+        assert data["status"] in ["healthy", "degraded"]
         assert "version" in data
         assert "environment" in data
+        assert "services" in data
 
 @pytest.mark.asyncio
 async def test_root_endpoint():
