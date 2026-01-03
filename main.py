@@ -70,12 +70,54 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring."""
-    return {
+    """
+    Health check endpoint for monitoring.
+    
+    Returns detailed status of all service dependencies.
+    """
+    from sqlalchemy import text
+    
+    health_status = {
         "status": "healthy",
         "version": settings.VERSION,
-        "environment": "development" if settings.DEBUG else "production"
+        "environment": "development" if settings.DEBUG else "production",
+        "services": {}
     }
+    
+    # Check database connectivity
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        health_status["services"]["database"] = {"status": "healthy"}
+    except Exception as e:
+        health_status["services"]["database"] = {"status": "unhealthy", "error": str(e)}
+        health_status["status"] = "degraded"
+    
+    # Check Redis connectivity
+    try:
+        if settings.REDIS_URL:
+            import redis
+            r = redis.from_url(settings.REDIS_URL)
+            r.ping()
+            health_status["services"]["redis"] = {"status": "healthy"}
+        else:
+            health_status["services"]["redis"] = {"status": "not_configured"}
+    except Exception as e:
+        health_status["services"]["redis"] = {"status": "unhealthy", "error": str(e)}
+        # Redis is optional, so just mark as degraded
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+    
+    # Check Celery broker (same as Redis usually)
+    try:
+        if settings.CELERY_BROKER_URL:
+            health_status["services"]["celery_broker"] = {"status": "configured", "url": settings.CELERY_BROKER_URL.split("@")[-1] if "@" in settings.CELERY_BROKER_URL else "configured"}
+        else:
+            health_status["services"]["celery_broker"] = {"status": "not_configured"}
+    except Exception as e:
+        health_status["services"]["celery_broker"] = {"status": "error", "error": str(e)}
+    
+    return health_status
 
 
 @app.get("/")
