@@ -1,7 +1,7 @@
 """
 Reviewer models for reviewer matching feature.
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey, JSON, LargeBinary
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey, JSON, LargeBinary, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.core.database import Base
@@ -53,6 +53,11 @@ class Reviewer(Base):
     # Relationships
     user = relationship("User", back_populates="reviewer_profile")
     matches = relationship("ReviewerMatch", back_populates="reviewer", cascade="all, delete-orphan")
+    
+    # Composite index for finding available reviewers
+    __table_args__ = (
+        Index('ix_reviewers_available_assignments', 'is_available', 'current_assignments'),
+    )
     
     def __repr__(self):
         return f"<Reviewer(id={self.id}, user_id={self.user_id})>"
@@ -110,6 +115,13 @@ class ReviewerMatch(Base):
     # Relationships
     reviewer = relationship("Reviewer", back_populates="matches")
     analysis = relationship("ManuscriptAnalysis", back_populates="reviewer_matches")
+    
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index('ix_reviewer_matches_analysis_status', 'analysis_id', 'status'),
+        Index('ix_reviewer_matches_reviewer_status', 'reviewer_id', 'status'),
+        Index('ix_reviewer_matches_score', 'analysis_id', 'match_score'),
+    )
     
     def __repr__(self):
         return f"<ReviewerMatch(id={self.id}, analysis_id={self.analysis_id}, reviewer_id={self.reviewer_id}, score={self.match_score})>"
