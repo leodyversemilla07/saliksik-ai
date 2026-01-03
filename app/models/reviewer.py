@@ -3,8 +3,13 @@ Reviewer models for reviewer matching feature.
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey, JSON, LargeBinary
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
+
+
+def utc_now():
+    """Return current UTC time."""
+    return datetime.now(timezone.utc)
 
 
 class Reviewer(Base):
@@ -42,8 +47,8 @@ class Reviewer(Base):
     max_assignments = Column(Integer, default=5)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     # Relationships
     user = relationship("User", back_populates="reviewer_profile")
@@ -97,8 +102,8 @@ class ReviewerMatch(Base):
     )  # suggested, invited, accepted, declined, completed
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now, index=True)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     invited_at = Column(DateTime, nullable=True)
     responded_at = Column(DateTime, nullable=True)
     

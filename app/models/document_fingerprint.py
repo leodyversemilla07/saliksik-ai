@@ -4,8 +4,13 @@ Stores MinHash fingerprints for efficient similarity comparison.
 """
 from sqlalchemy import Column, Integer, LargeBinary, JSON, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
+
+
+def utc_now():
+    """Return current UTC time."""
+    return datetime.now(timezone.utc)
 
 
 class DocumentFingerprint(Base):
@@ -35,7 +40,7 @@ class DocumentFingerprint(Base):
     shingles = Column(JSON, default=list)
     
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
     
     # Relationship to the analysis
     analysis = relationship(

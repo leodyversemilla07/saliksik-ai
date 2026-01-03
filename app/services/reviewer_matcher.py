@@ -15,6 +15,8 @@ except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +208,7 @@ class ReviewerMatcher:
         exclude_user_ids: Optional[List[int]] = None
     ) -> List[ReviewerSuggestion]:
         """
-        Find reviewers matching a manuscript based on expertise.
+        Find reviewers matching a manuscript based on expertise (sync version).
         
         Args:
             manuscript_keywords: Keywords extracted from the manuscript
@@ -233,6 +235,95 @@ class ReviewerMatcher:
             query = query.filter(Reviewer.user_id.notin_(exclude_user_ids))
         
         reviewers = query.all()
+        
+        for reviewer in reviewers:
+            if not reviewer.is_accepting_reviews:
+                continue
+            
+            # Calculate keyword similarity
+            keyword_score, matched_keywords = self.calculate_keyword_similarity(
+                manuscript_keywords,
+                reviewer.expertise_keywords or []
+            )
+            
+            # Calculate semantic similarity if embedding exists
+            semantic_score = 0.0
+            match_method = "keyword"
+            
+            if reviewer.expertise_embedding:
+                # Use summary or first part of text for semantic matching
+                text_sample = manuscript_text[:2000] if manuscript_text else ""
+                semantic_score = self.calculate_semantic_similarity(
+                    text_sample,
+                    reviewer.expertise_embedding
+                )
+                
+                if semantic_score > 0:
+                    match_method = "hybrid" if keyword_score > 0 else "semantic"
+            
+            # Calculate final score
+            if match_method == "hybrid":
+                final_score = self.calculate_hybrid_score(keyword_score, semantic_score)
+            elif match_method == "semantic":
+                final_score = semantic_score
+            else:
+                final_score = keyword_score
+            
+            # Only include if above threshold
+            if final_score >= min_score:
+                suggestions.append(ReviewerSuggestion(
+                    reviewer_id=reviewer.id,
+                    user_id=reviewer.user_id,
+                    username=reviewer.user.username if reviewer.user else "Unknown",
+                    match_score=round(final_score, 4),
+                    matched_keywords=matched_keywords,
+                    match_method=match_method,
+                    institution=reviewer.institution,
+                    expertise_keywords=reviewer.expertise_keywords or [],
+                    available_slots=reviewer.available_slots
+                ))
+        
+        # Sort by match score descending
+        suggestions.sort(key=lambda x: x.match_score, reverse=True)
+        
+        return suggestions[:top_n]
+
+    async def find_matching_reviewers_async(
+        self,
+        manuscript_keywords: List[str],
+        manuscript_text: str,
+        db: AsyncSession,
+        top_n: int = 5,
+        min_score: float = 0.1,
+        exclude_user_ids: Optional[List[int]] = None
+    ) -> List[ReviewerSuggestion]:
+        """
+        Find reviewers matching a manuscript based on expertise (async version).
+        
+        Args:
+            manuscript_keywords: Keywords extracted from the manuscript
+            manuscript_text: Full manuscript text (for semantic matching)
+            db: Async database session
+            top_n: Maximum number of suggestions to return
+            min_score: Minimum match score to include
+            exclude_user_ids: User IDs to exclude (e.g., manuscript author)
+            
+        Returns:
+            List of ReviewerSuggestion sorted by match score
+        """
+        from app.models.reviewer import Reviewer
+        
+        exclude_user_ids = exclude_user_ids or []
+        suggestions = []
+        
+        # Query available reviewers (async)
+        stmt = select(Reviewer).filter(Reviewer.is_available == True)
+        
+        if exclude_user_ids:
+            stmt = stmt.filter(Reviewer.user_id.notin_(exclude_user_ids))
+        
+        result = await db.execute(stmt)
+        reviewers = result.scalars().all()
         
         for reviewer in reviewers:
             if not reviewer.is_accepting_reviews:

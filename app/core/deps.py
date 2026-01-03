@@ -2,7 +2,7 @@
 Authentication dependencies and utilities.
 """
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -10,8 +10,23 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
 
-# Use OAuth2PasswordBearer for better Swagger UI integration
+# Schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
+
+
+async def get_user_by_api_key(
+    api_key: Optional[str] = Depends(api_key_header),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[User]:
+    """
+    Get user by API key from header.
+    """
+    if not api_key:
+        return None
+    
+    result = await db.execute(select(User).filter(User.api_key == api_key))
+    return result.scalar_one_or_none()
 
 
 async def get_current_user(
@@ -50,6 +65,32 @@ async def get_current_user(
         )
     
     return user
+
+
+async def get_authenticated_user(
+    db: AsyncSession = Depends(get_db),
+    api_key_user: Optional[User] = Depends(get_user_by_api_key),
+    token: Optional[str] = Depends(oauth2_scheme)
+) -> User:
+    """
+    Unified authentication dependency - supports both JWT and API Key.
+    """
+    # 1. Try API Key first (common for external API access)
+    if api_key_user:
+        return api_key_user
+    
+    # 2. Try JWT
+    if token:
+        try:
+            return await get_current_user(token, db)
+        except HTTPException:
+            pass
+            
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated. Provide a valid JWT token in Authorization header or X-API-KEY header.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_user_optional(

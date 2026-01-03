@@ -1,12 +1,13 @@
 """
 Plagiarism detection API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Form
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import logging
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_authenticated_user
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.plagiarism import (
@@ -23,8 +24,8 @@ router = APIRouter()
 @router.post("/check", response_model=PlagiarismResult)
 async def check_plagiarism(
     request: PlagiarismCheckRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Check manuscript text for plagiarism against stored documents.
@@ -44,8 +45,8 @@ async def check_plagiarism(
     try:
         detector = get_plagiarism_detector()
         
-        # Check against database
-        result = detector.check_similarity_with_database(
+        # Check against database (async)
+        result = await detector.check_similarity_with_database_async(
             text=request.manuscript_text,
             db=db
         )
@@ -97,8 +98,8 @@ async def get_plagiarism_stats():
 
 @router.post("/index/rebuild")
 async def rebuild_plagiarism_index(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Rebuild the plagiarism detection index from database.
@@ -108,16 +109,17 @@ async def rebuild_plagiarism_index(
     
     Note: This is an admin operation and may take time for large databases.
     """
-    from app.models.document_fingerprint import DocumentFingerprint
     from app.models.analysis import ManuscriptAnalysis
     
     try:
         detector = get_plagiarism_detector()
         
-        # Get all analyses with their fingerprints
-        analyses = db.query(ManuscriptAnalysis).filter(
+        # Get all analyses with their fingerprints (async)
+        stmt = select(ManuscriptAnalysis).filter(
             ManuscriptAnalysis.status == 'COMPLETED'
-        ).all()
+        )
+        result = await db.execute(stmt)
+        analyses = result.scalars().all()
         
         indexed_count = 0
         for analysis in analyses:

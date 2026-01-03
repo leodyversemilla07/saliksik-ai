@@ -3,8 +3,13 @@ Manuscript analysis model.
 """
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
+
+
+def utc_now():
+    """Return current UTC time."""
+    return datetime.now(timezone.utc)
 
 
 class ManuscriptAnalysis(Base):
@@ -34,7 +39,7 @@ class ManuscriptAnalysis(Base):
     task_id = Column(String(50), unique=True, nullable=True, index=True)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
     processing_time = Column(Float, nullable=True)
     
     # Relationships
@@ -62,4 +67,4 @@ class ProcessingError(Base):
     error_message = Column(Text, nullable=False)
     input_type = Column(String(10), default='text')
     input_size = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)

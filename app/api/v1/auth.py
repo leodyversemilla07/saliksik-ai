@@ -5,16 +5,34 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin, TokenResponse, UserResponse
 from app.core.deps import get_current_user
 import logging
+import secrets
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.post("/api-key", response_model=dict)
+async def generate_api_key(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generate or get current API Key.
+    """
+    if not current_user.api_key:
+        # Generate a secure 32-char API key
+        current_user.api_key = f"sk_{secrets.token_urlsafe(24)}"
+        await db.commit()
+        logger.info(f"API Key generated for user: {current_user.username}")
+    
+    return {"api_key": current_user.api_key}
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -77,7 +95,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         )
     
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     await db.commit()
     
     # Create access token

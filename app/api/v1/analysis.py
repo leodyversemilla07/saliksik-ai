@@ -8,7 +8,7 @@ from typing import Optional
 import time
 import logging
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_authenticated_user
 from app.core.cache import AIResultCache
 from app.models.user import User
 from app.models.analysis import ManuscriptAnalysis, ProcessingError
@@ -35,7 +35,7 @@ async def pre_review(
     manuscript_text: Optional[str] = Form(None),
     manuscript_file: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     AI-assisted manuscript pre-review (authenticated).
@@ -125,7 +125,7 @@ async def pre_review(
 async def get_analysis_status(
     task_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_authenticated_user)
 ):
     """Check the status of an analysis task."""
     stmt = select(ManuscriptAnalysis).filter(
@@ -221,7 +221,7 @@ async def get_history(
     page: int = 1,
     page_size: int = 20,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_authenticated_user)
 ):
     """Get user's analysis history with pagination."""
     
@@ -278,7 +278,7 @@ async def cache_stats():
 
 
 @router.post("/cache/clear")
-async def clear_cache(current_user: User = Depends(get_current_user)):
+async def clear_cache(current_user: User = Depends(get_authenticated_user)):
     """Clear cache (authenticated users only)."""
     success = AIResultCache.clear_all_cache()
     return {

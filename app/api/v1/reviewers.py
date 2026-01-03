@@ -2,13 +2,14 @@
 Reviewer management and matching API endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_authenticated_user
 from app.core.config import settings
 from app.models.user import User
 from app.models.reviewer import Reviewer, ReviewerMatch
@@ -54,8 +55,8 @@ def _reviewer_to_response(reviewer: Reviewer) -> ReviewerResponse:
 @router.post("/", response_model=ReviewerResponse, status_code=status.HTTP_201_CREATED)
 async def create_reviewer_profile(
     request: ReviewerCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Create a reviewer profile for the current user.
@@ -69,7 +70,9 @@ async def create_reviewer_profile(
         )
     
     # Check if user already has a reviewer profile
-    existing = db.query(Reviewer).filter(Reviewer.user_id == current_user.id).first()
+    stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -97,15 +100,15 @@ async def create_reviewer_profile(
         )
         
         db.add(reviewer)
-        db.commit()
-        db.refresh(reviewer)
+        await db.commit()
+        await db.refresh(reviewer)
         
         logger.info(f"Created reviewer profile for user {current_user.username}")
         
         return _reviewer_to_response(reviewer)
         
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Failed to create reviewer profile: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -115,11 +118,13 @@ async def create_reviewer_profile(
 
 @router.get("/me", response_model=ReviewerResponse)
 async def get_my_reviewer_profile(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """Get the current user's reviewer profile."""
-    reviewer = db.query(Reviewer).filter(Reviewer.user_id == current_user.id).first()
+    stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
+    result = await db.execute(stmt)
+    reviewer = result.scalar_one_or_none()
     
     if not reviewer:
         raise HTTPException(
@@ -133,11 +138,13 @@ async def get_my_reviewer_profile(
 @router.put("/me", response_model=ReviewerResponse)
 async def update_my_reviewer_profile(
     request: ReviewerUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """Update the current user's reviewer profile."""
-    reviewer = db.query(Reviewer).filter(Reviewer.user_id == current_user.id).first()
+    stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
+    result = await db.execute(stmt)
+    reviewer = result.scalar_one_or_none()
     
     if not reviewer:
         raise HTTPException(
@@ -170,15 +177,15 @@ async def update_my_reviewer_profile(
                 reviewer.expertise_description
             )
         
-        db.commit()
-        db.refresh(reviewer)
+        await db.commit()
+        await db.refresh(reviewer)
         
         logger.info(f"Updated reviewer profile for user {current_user.username}")
         
         return _reviewer_to_response(reviewer)
         
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Failed to update reviewer profile: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -192,8 +199,8 @@ async def list_reviewers(
     page_size: int = Query(20, ge=1, le=100),
     available_only: bool = Query(False),
     keyword: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     List all reviewers with optional filtering.
@@ -201,20 +208,26 @@ async def list_reviewers(
     - **available_only**: Only show reviewers accepting new assignments
     - **keyword**: Filter by expertise keyword
     """
-    query = db.query(Reviewer)
+    stmt = select(Reviewer)
     
     if available_only:
-        query = query.filter(Reviewer.is_available == True)
+        stmt = stmt.filter(Reviewer.is_available == True)
     
     if keyword:
         # JSON array contains filter (PostgreSQL specific, falls back to LIKE for others)
-        query = query.filter(
+        stmt = stmt.filter(
             Reviewer.expertise_keywords.contains([keyword.lower()])
         )
     
-    total_count = query.count()
+    # Count total
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    count_result = await db.execute(count_stmt)
+    total_count = count_result.scalar()
+    
     offset = (page - 1) * page_size
-    reviewers = query.offset(offset).limit(page_size).all()
+    stmt = stmt.offset(offset).limit(page_size)
+    result = await db.execute(stmt)
+    reviewers = result.scalars().all()
     
     return ReviewerListResponse(
         results=[_reviewer_to_response(r) for r in reviewers],
@@ -231,8 +244,8 @@ async def get_reviewer_suggestions(
     analysis_id: int,
     top_n: int = Query(5, ge=1, le=20),
     min_score: float = Query(0.1, ge=0.0, le=1.0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Get reviewer suggestions for a manuscript analysis.
@@ -247,9 +260,9 @@ async def get_reviewer_suggestions(
         )
     
     # Get the analysis
-    analysis = db.query(ManuscriptAnalysis).filter(
-        ManuscriptAnalysis.id == analysis_id
-    ).first()
+    stmt = select(ManuscriptAnalysis).filter(ManuscriptAnalysis.id == analysis_id)
+    result = await db.execute(stmt)
+    analysis = result.scalar_one_or_none()
     
     if not analysis:
         raise HTTPException(
@@ -268,9 +281,9 @@ async def get_reviewer_suggestions(
     manuscript_keywords = analysis.keywords or []
     manuscript_text = analysis.manuscript_text or ""
     
-    # Find matching reviewers
+    # Find matching reviewers (async)
     matcher = get_reviewer_matcher()
-    suggestions = matcher.find_matching_reviewers(
+    suggestions = await matcher.find_matching_reviewers_async(
         manuscript_keywords=manuscript_keywords,
         manuscript_text=manuscript_text,
         db=db,
@@ -280,9 +293,9 @@ async def get_reviewer_suggestions(
     )
     
     # Count available reviewers
-    available_count = db.query(Reviewer).filter(
-        Reviewer.is_available == True
-    ).count()
+    count_stmt = select(func.count()).select_from(Reviewer).filter(Reviewer.is_available == True)
+    count_result = await db.execute(count_stmt)
+    available_count = count_result.scalar()
     
     return ReviewerSuggestionsResponse(
         analysis_id=analysis_id,
@@ -310,16 +323,16 @@ async def assign_reviewer(
     analysis_id: int,
     reviewer_id: int,
     request: ReviewerAssignRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Assign a reviewer to a manuscript analysis.
     """
     # Get the analysis
-    analysis = db.query(ManuscriptAnalysis).filter(
-        ManuscriptAnalysis.id == analysis_id
-    ).first()
+    stmt = select(ManuscriptAnalysis).filter(ManuscriptAnalysis.id == analysis_id)
+    result = await db.execute(stmt)
+    analysis = result.scalar_one_or_none()
     
     if not analysis:
         raise HTTPException(
@@ -335,7 +348,9 @@ async def assign_reviewer(
         )
     
     # Get the reviewer
-    reviewer = db.query(Reviewer).filter(Reviewer.id == reviewer_id).first()
+    stmt = select(Reviewer).filter(Reviewer.id == reviewer_id)
+    result = await db.execute(stmt)
+    reviewer = result.scalar_one_or_none()
     
     if not reviewer:
         raise HTTPException(
@@ -350,10 +365,12 @@ async def assign_reviewer(
         )
     
     # Check if already assigned
-    existing_match = db.query(ReviewerMatch).filter(
+    stmt = select(ReviewerMatch).filter(
         ReviewerMatch.analysis_id == analysis_id,
         ReviewerMatch.reviewer_id == reviewer_id
-    ).first()
+    )
+    result = await db.execute(stmt)
+    existing_match = result.scalar_one_or_none()
     
     if existing_match:
         raise HTTPException(
@@ -377,7 +394,7 @@ async def assign_reviewer(
             matched_keywords=matched_keywords,
             match_method="keyword",
             status="invited" if request.send_invitation else "suggested",
-            invited_at=datetime.utcnow() if request.send_invitation else None
+            invited_at=datetime.now(timezone.utc) if request.send_invitation else None
         )
         
         db.add(match)
@@ -385,8 +402,8 @@ async def assign_reviewer(
         # Update reviewer's current assignments
         reviewer.current_assignments += 1
         
-        db.commit()
-        db.refresh(match)
+        await db.commit()
+        await db.refresh(match)
         
         logger.info(f"Assigned reviewer {reviewer_id} to analysis {analysis_id}")
         
@@ -404,7 +421,7 @@ async def assign_reviewer(
         )
         
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Failed to assign reviewer: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -415,12 +432,14 @@ async def assign_reviewer(
 @router.get("/my-assignments", response_model=List[ReviewerMatchResponse])
 async def get_my_assignments(
     status_filter: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """Get review assignments for the current user's reviewer profile."""
     # Get user's reviewer profile
-    reviewer = db.query(Reviewer).filter(Reviewer.user_id == current_user.id).first()
+    stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
+    result = await db.execute(stmt)
+    reviewer = result.scalar_one_or_none()
     
     if not reviewer:
         raise HTTPException(
@@ -428,12 +447,14 @@ async def get_my_assignments(
             detail="No reviewer profile found"
         )
     
-    query = db.query(ReviewerMatch).filter(ReviewerMatch.reviewer_id == reviewer.id)
+    stmt = select(ReviewerMatch).filter(ReviewerMatch.reviewer_id == reviewer.id)
     
     if status_filter:
-        query = query.filter(ReviewerMatch.status == status_filter)
+        stmt = stmt.filter(ReviewerMatch.status == status_filter)
     
-    matches = query.order_by(ReviewerMatch.created_at.desc()).all()
+    stmt = stmt.order_by(ReviewerMatch.created_at.desc())
+    result = await db.execute(stmt)
+    matches = result.scalars().all()
     
     return [
         ReviewerMatchResponse(
@@ -456,8 +477,8 @@ async def get_my_assignments(
 async def update_assignment_status(
     match_id: int,
     request: ReviewerMatchStatus,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Update the status of a review assignment.
@@ -465,7 +486,9 @@ async def update_assignment_status(
     Reviewers can accept or decline invitations.
     """
     # Get the match
-    match = db.query(ReviewerMatch).filter(ReviewerMatch.id == match_id).first()
+    stmt = select(ReviewerMatch).filter(ReviewerMatch.id == match_id)
+    result = await db.execute(stmt)
+    match = result.scalar_one_or_none()
     
     if not match:
         raise HTTPException(
@@ -474,7 +497,9 @@ async def update_assignment_status(
         )
     
     # Check permission (must be the assigned reviewer)
-    reviewer = db.query(Reviewer).filter(Reviewer.user_id == current_user.id).first()
+    stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
+    result = await db.execute(stmt)
+    reviewer = result.scalar_one_or_none()
     
     if not reviewer or reviewer.id != match.reviewer_id:
         raise HTTPException(
@@ -493,7 +518,7 @@ async def update_assignment_status(
     try:
         old_status = match.status
         match.status = request.status
-        match.responded_at = datetime.utcnow()
+        match.responded_at = datetime.now(timezone.utc)
         
         # Update reviewer's assignment count
         if request.status == "declined" and old_status != "declined":
@@ -501,8 +526,8 @@ async def update_assignment_status(
         elif request.status == "completed" and old_status != "completed":
             reviewer.current_assignments = max(0, reviewer.current_assignments - 1)
         
-        db.commit()
-        db.refresh(match)
+        await db.commit()
+        await db.refresh(match)
         
         logger.info(f"Updated assignment {match_id} status to {request.status}")
         
@@ -520,7 +545,7 @@ async def update_assignment_status(
         )
         
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Failed to update assignment status: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

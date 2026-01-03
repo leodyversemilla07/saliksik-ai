@@ -1,20 +1,22 @@
 # FastAPI core
-fastapi==0.115.5
-uvicorn[standard]==0.32.1
-pydantic==2.10.3
-pydantic-settings==2.6.1
+fastapi==0.127.0
+uvicorn[standard]==0.40.0
+pydantic==2.12.5
+pydantic-settings==2.12.0
 
 # Database
-sqlalchemy==2.0.36
+sqlalchemy==2.0.45
 psycopg2-binary==2.9.10
+asyncpg==0.31.0
+aiosqlite==0.22.1
 alembic==1.14.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
 python-multipart==0.0.20
 
-# AI/ML (same as Django version)
+# AI/ML
 spacy==3.8.7
 nltk==3.9.1
 transformers==4.57.1
@@ -32,7 +34,7 @@ redis==5.2.1
 python-decouple==3.8
 
 # Enhancement Features
-datasketch>=1.6.0          # Plagiarism detection (MinHash LSH)
-xxhash>=3.4.0              # Fast hashing for document fingerprinting
-sentence-transformers>=2.2.0  # Reviewer matching (semantic similarity)
-langdetect>=1.0.9          # Multi-language detection
+datasketch==1.8.0          # Plagiarism detection (MinHash LSH)
+xxhash==3.6.0              # Fast hashing for document fingerprinting
+sentence-transformers==5.2.0  # Reviewer matching (semantic similarity)
+langdetect==1.0.9          # Multi-language detection
