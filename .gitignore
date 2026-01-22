@@ -248,3 +248,7 @@ ssl/
 # Uncomment if you generate docs
 # docs/_build/
 # docs/.doctrees/
+
+# AI agent temporary files
+.agent/
+.shared/
