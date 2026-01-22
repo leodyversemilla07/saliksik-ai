@@ -1,0 +1,284 @@
+# Docker Compose for Saliksik AI - DEVELOPMENT MODE
+#
+# Optimized for local development with:
+# - Hot reload for code changes
+# - Debug ports exposed
+# - Volume mounts for live editing
+# - Development tools included
+# - Resource limits relaxed
+#
+# Usage:
+#   Start all services:  docker-compose -f docker-compose.dev.yml up -d
+#   View logs:           docker-compose -f docker-compose.dev.yml logs -f
+#   Rebuild:             docker-compose -f docker-compose.dev.yml up -d --build
+#   Stop:                docker-compose -f docker-compose.dev.yml down
+#   Clean everything:    docker-compose -f docker-compose.dev.yml down -v
+
+version: "3.8"
+
+services:
+  # ============================================
+  # FastAPI Application - Development Mode
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: saliksik-app-dev
+    volumes:
+      # Mount source code for hot reload
+      - ./app:/app/app:ro
+      - ./main.py:/app/main.py:ro
+      - ./alembic:/app/alembic:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+      
+      # Mount tests for easy testing
+      - ./tests:/app/tests:ro
+      
+      # Exclude Python cache (performance)
+      - /app/__pycache__
+      - /app/app/__pycache__
+      
+      # Persistent pip cache for faster rebuilds
+      - pip_cache:/home/devuser/.cache/pip
+      
+      # Development logs and data
+      - ./logs:/app/logs
+      - ./static:/app/static
+    environment:
+      # Application settings
+      - DEBUG=true
+      - ENVIRONMENT=development
+      
+      # Database connection
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
+      - SYNC_DATABASE_URL=postgresql://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
+      
+      # Redis connection
+      - REDIS_URL=redis://redis:6379/0
+      
+      # Celery configuration
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      
+      # Development features
+      - AI_LIGHT_MODE=false
+      - ENABLE_PLAGIARISM_DETECTION=true
+      - ENABLE_REVIEWER_MATCHING=true
+      
+      # CORS for local development
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000
+      
+      # Logging
+      - LOG_LEVEL=DEBUG
+      
+      # Python settings
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    ports:
+      - "${APP_PORT:-8000}:8000"
+      - "5678:5678"  # Debugger port
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - saliksik-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Resource limits (relaxed for dev)
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  # ============================================
+  # Celery Worker - Development Mode
+  # ============================================
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: saliksik-celery-dev
+    command: celery -A app.celery_app worker --loglevel=debug --concurrency=2
+    volumes:
+      # Same mounts as app for code consistency
+      - ./app:/app/app:ro
+      - ./main.py:/app/main.py:ro
+      - pip_cache:/home/devuser/.cache/pip
+      - ./logs:/app/logs
+    environment:
+      # Same environment as app
+      - DEBUG=true
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
+      - SYNC_DATABASE_URL=postgresql://${POSTGRES_USER:-saliksik}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-saliksik_ai}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - AI_LIGHT_MODE=false
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - saliksik-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+
+  # ============================================
+  # Database - PostgreSQL
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    container_name: saliksik-postgres-dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-saliksik_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-saliksik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      # Development optimizations
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      # Persistent data
+      - postgres_data_dev:/var/lib/postgresql/data
+      
+      # Custom PostgreSQL config for development
+      # - ./docker/postgres/postgresql.dev.conf:/etc/postgresql/postgresql.conf
+      
+      # Init scripts (optional)
+      # - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - saliksik-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saliksik} -d ${POSTGRES_DB:-saliksik_ai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    # Development resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # Cache - Redis
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: saliksik-redis-dev
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data_dev:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - saliksik-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ============================================
+  # Database Admin - pgAdmin (Optional)
+  # ============================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: saliksik-pgadmin-dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@saliksik.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - saliksik-network
+    depends_on:
+      - db
+    restart: unless-stopped
+    profiles:
+      - tools  # Start only with: docker-compose --profile tools up
+
+  # ============================================
+  # Redis Commander (Optional)
+  # ============================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: saliksik-redis-commander-dev
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    networks:
+      - saliksik-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles:
+      - tools  # Start only with: docker-compose --profile tools up
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+  pip_cache:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  saliksik-network:
+    driver: bridge
+    name: saliksik-dev-network

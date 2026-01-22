@@ -1,15 +1,31 @@
-# Docker
+# ============================================
+# Python
+# ============================================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
+
+# Virtual environments
 env/
 venv/
 .venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python package management
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
+.eggs/
+*.egg-info/
+dist/
+build/
+wheels/
+
+# Testing
 .coverage
 .coverage.*
 .cache
@@ -19,37 +35,135 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+htmlcov/
+.tox/
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-media/
-staticfiles/
-
-# Environment variables
+# ============================================
+# Environment & Configuration
+# ============================================
 .env
 .env.local
+.env.*.local
+.env.development
 .env.production
+*.env
 
-# IDE
+# ============================================
+# IDE & Editors
+# ============================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*.swn
 *~
+.project
+.settings/
+.pydevproject
 
+# ============================================
 # OS
+# ============================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Node modules (if using frontend)
+# ============================================
+# Git
+# ============================================
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# ============================================
+# Docker
+# ============================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ============================================
+# Documentation
+# ============================================
+docs/
+*.md
+README*
+LICENSE
+CHANGELOG*
+
+# ============================================
+# Logs & Databases
+# ============================================
+*.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+test_suite.db
+
+# ============================================
+# AI/ML Model Files (large files)
+# ============================================
+*.pt
+*.pth
+*.h5
+*.onnx
+models/
+*.pkl
+*.pickle
+
+# ============================================
+# Static & Media
+# ============================================
+staticfiles/
+media/
+uploads/
+
+# ============================================
+# Node.js (if using frontend)
+# ============================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.npm/
+.yarn/
+package-lock.json
+yarn.lock
 
+# ============================================
 # Temporary files
+# ============================================
 *.tmp
+*.temp
 *.bak
 *.orig
+*.rej
+tmp/
+temp/
+
+# ============================================
+# AI Agent files
+# ============================================
+.agent/
+.shared/
+
+# ============================================
+# Alembic (keep only config)
+# ============================================
+alembic/versions/*.py
+!alembic/versions/__init__.py
+
+# ============================================
+# Tests (optional - comment out if needed)
+# ============================================
+tests/
+test_*
+*_test.py

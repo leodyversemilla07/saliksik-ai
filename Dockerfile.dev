@@ -1,0 +1,69 @@
+# Development Dockerfile for Saliksik AI
+# Optimized for fast iteration and debugging
+
+FROM python:3.12-slim
+
+# Install system dependencies for development
+RUN apt-get update && apt-get install -y \
+    # Build essentials for Python packages
+    gcc \
+    g++ \
+    make \
+    # PostgreSQL client for debugging
+    postgresql-client \
+    # Redis client for debugging
+    redis-tools \
+    # Network utilities
+    curl \
+    wget \
+    netcat-traditional \
+    # Git for version control
+    git \
+    # Process management
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Create non-root user for development
+RUN useradd -m -u 1000 -s /bin/bash devuser && \
+    chown -R devuser:devuser /app
+
+# Copy requirements first for layer caching
+COPY --chown=devuser:devuser requirements.txt .
+
+# Install Python dependencies
+# Use --no-cache-dir to reduce image size
+# Install in user mode for easier updates
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Install development tools
+RUN pip install --no-cache-dir \
+    ipython \
+    ipdb \
+    pytest-watch \
+    watchdog \
+    python-dotenv
+
+# Download spaCy model (required for NLP)
+RUN python -m spacy download en_core_web_sm
+
+# Copy application code
+# In dev, this will be mounted as volume for hot reload
+COPY --chown=devuser:devuser . .
+
+# Switch to non-root user
+USER devuser
+
+# Expose ports
+EXPOSE 8000
+EXPOSE 5678
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Development command with auto-reload
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]
