@@ -5,12 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from datetime import datetime, timezone
 import logging
 
 from app.core.database import get_db
-from app.core.deps import get_authenticated_user
+from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser
 from app.core.config import settings
 from app.models.user import User
 from app.models.reviewer import Reviewer, ReviewerMatch
@@ -57,8 +57,8 @@ def _reviewer_to_response(reviewer: Reviewer) -> ReviewerResponse:
 @router.post("/", response_model=ReviewerResponse, status_code=status.HTTP_201_CREATED)
 async def create_reviewer_profile(
     request: ReviewerCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     Create a reviewer profile for the current user.
@@ -126,8 +126,8 @@ async def create_reviewer_profile(
 
 @router.get("/me", response_model=ReviewerResponse)
 async def get_my_reviewer_profile(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """Get the current user's reviewer profile."""
     stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
@@ -146,8 +146,8 @@ async def get_my_reviewer_profile(
 @router.put("/me", response_model=ReviewerResponse)
 async def update_my_reviewer_profile(
     request: ReviewerUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """Update the current user's reviewer profile."""
     stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
@@ -207,8 +207,8 @@ async def list_reviewers(
     page_size: int = Query(20, ge=1, le=100),
     available_only: bool = Query(False),
     keyword: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     List all reviewers with optional filtering.
@@ -257,8 +257,8 @@ async def get_reviewer_suggestions(
     analysis_id: int,
     top_n: int = Query(5, ge=1, le=20),
     min_score: float = Query(0.1, ge=0.0, le=1.0),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     Get reviewer suggestions for a manuscript analysis.
@@ -336,8 +336,8 @@ async def assign_reviewer(
     analysis_id: int,
     reviewer_id: int,
     request: ReviewerAssignRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     Assign a reviewer to a manuscript analysis.
@@ -445,8 +445,8 @@ async def assign_reviewer(
 @router.get("/my-assignments", response_model=List[ReviewerMatchResponse])
 async def get_my_assignments(
     status_filter: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """Get review assignments for the current user's reviewer profile."""
     # Get user's reviewer profile
@@ -490,8 +490,8 @@ async def get_my_assignments(
 async def update_assignment_status(
     match_id: int,
     request: ReviewerMatchStatus,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     Update the status of a review assignment.

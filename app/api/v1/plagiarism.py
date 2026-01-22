@@ -4,10 +4,11 @@ Plagiarism detection API endpoints.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Annotated
 import logging
 
 from app.core.database import get_db
-from app.core.deps import get_authenticated_user
+from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.plagiarism import (
@@ -24,8 +25,8 @@ router = APIRouter()
 @router.post("/check", response_model=PlagiarismResult)
 async def check_plagiarism(
     request: PlagiarismCheckRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     Check manuscript text for plagiarism against stored documents.
@@ -98,8 +99,8 @@ async def get_plagiarism_stats():
 
 @router.post("/index/rebuild")
 async def rebuild_plagiarism_index(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_authenticated_user)
+    db: DbSession,
+    current_user: AuthenticatedUser
 ):
     """
     Rebuild the plagiarism detection index from database.

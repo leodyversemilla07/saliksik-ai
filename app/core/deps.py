@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import Optional
+from typing import Optional, Annotated
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
@@ -14,10 +14,16 @@ from app.models.user import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
 
+# Type aliases for common dependencies
+DbSession = Annotated[AsyncSession, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(lambda: get_current_user)]
+AuthenticatedUser = Annotated[User, Depends(lambda: get_authenticated_user)]
+OptionalUser = Annotated[Optional[User], Depends(lambda: get_current_user_optional)]
+
 
 async def get_user_by_api_key(
-    api_key: Optional[str] = Depends(api_key_header),
-    db: AsyncSession = Depends(get_db)
+    api_key: Annotated[Optional[str], Depends(api_key_header)],
+    db: DbSession
 ) -> Optional[User]:
     """
     Get user by API key from header.
@@ -30,8 +36,8 @@ async def get_user_by_api_key(
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: DbSession
 ) -> User:
     """
     Dependency to get current authenticated user.
@@ -68,9 +74,9 @@ async def get_current_user(
 
 
 async def get_authenticated_user(
-    db: AsyncSession = Depends(get_db),
-    api_key_user: Optional[User] = Depends(get_user_by_api_key),
-    token: Optional[str] = Depends(oauth2_scheme)
+    db: DbSession,
+    api_key_user: Annotated[Optional[User], Depends(get_user_by_api_key)],
+    token: Annotated[Optional[str], Depends(oauth2_scheme)]
 ) -> User:
     """
     Unified authentication dependency - supports both JWT and API Key.
@@ -94,8 +100,8 @@ async def get_authenticated_user(
 
 
 async def get_current_user_optional(
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
+    token: Annotated[Optional[str], Depends(oauth2_scheme)],
+    db: DbSession
 ) -> Optional[User]:
     """
     Optional authentication - returns user if authenticated, None otherwise.

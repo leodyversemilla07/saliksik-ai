@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Annotated
 from app.core.database import get_db
 from app.core.security import (
     verify_password, get_password_hash, create_access_token,
@@ -20,7 +20,7 @@ from app.schemas.user import (
     ApiKeyResponse, ApiKeyRotateResponse,
     LogoutRequest, PasswordChangeRequest
 )
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, DbSession, CurrentUser
 from app.core.security_utils import validate_email, validate_username, validate_password, sanitize_string
 import logging
 
@@ -30,8 +30,8 @@ router = APIRouter()
 
 @router.post("/api-key", response_model=ApiKeyResponse)
 async def get_or_create_api_key(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: CurrentUser,
+    db: DbSession
 ):
     """
     Generate or get current API Key.
@@ -49,8 +49,8 @@ async def get_or_create_api_key(
 
 @router.post("/api-key/rotate", response_model=ApiKeyRotateResponse)
 async def rotate_api_key(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: CurrentUser,
+    db: DbSession
 ):
     """
     Rotate (revoke and regenerate) API Key.
@@ -70,8 +70,8 @@ async def rotate_api_key(
 
 @router.delete("/api-key")
 async def revoke_api_key(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: CurrentUser,
+    db: DbSession
 ):
     """
     Revoke (delete) API Key without generating a new one.
@@ -100,7 +100,7 @@ async def revoke_api_key(
         422: {"description": "Validation error"}
     }
 )
-async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(user_data: UserRegister, db: DbSession):
     """
     Register a new user account.
     
@@ -174,7 +174,10 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         401: {"description": "Invalid credentials"}
     }
 )
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
+    db: DbSession
+):
     """
     Authenticate user and return access/refresh tokens.
     
@@ -216,7 +219,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 
 
 @router.get("/profile", response_model=UserResponse)
-async def get_profile(current_user: User = Depends(get_current_user)):
+async def get_profile(current_user: CurrentUser):
     """Get current user profile."""
     return UserResponse.model_validate(current_user)
 
@@ -224,7 +227,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
 @router.post("/refresh", response_model=RefreshTokenResponse)
 async def refresh_access_token(
     request: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_db)
+    db: DbSession
 ):
     """
     Get a new access token using a refresh token.
@@ -270,9 +273,9 @@ async def refresh_access_token(
 
 @router.post("/logout")
 async def logout(
+    current_user: CurrentUser,
     request: LogoutRequest = None,
-    authorization: Optional[str] = Header(None),
-    current_user: User = Depends(get_current_user)
+    authorization: Optional[str] = Header(None)
 ):
     """
     Logout user by blacklisting tokens.
@@ -302,8 +305,8 @@ async def logout(
 @router.post("/change-password")
 async def change_password(
     request: PasswordChangeRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: CurrentUser,
+    db: DbSession
 ):
     """
     Change user password. Requires current password verification.
