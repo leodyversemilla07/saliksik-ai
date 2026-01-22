@@ -11,6 +11,9 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging, get_logger, RequestLoggingMiddleware
 from app.core.security_utils import RequestSizeLimitMiddleware
 from app.api.v1 import api_router
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 # Configure structured logging (use JSON in production)
 setup_logging(json_format=not settings.DEBUG)
@@ -202,9 +205,19 @@ async def health_check():
     return health_status
 
 
-@app.get("/")
+# Mount static files
+static_path = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_path):
+    os.makedirs(static_path)
+app.mount("/static", StaticFiles(directory=static_path), name="static")
+
+
+@app.get("/", include_in_schema=False)
 async def root():
-    """Root endpoint with API information."""
+    """Serve the landing page."""
+    index_file = os.path.join(static_path, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
     return {
         "name": settings.PROJECT_NAME,
         "version": settings.VERSION,
@@ -213,6 +226,15 @@ async def root():
         "health": "/health",
         "api": "/api/v1"
     }
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard():
+    """Serve the dashboard page."""
+    dashboard_file = os.path.join(static_path, "dashboard.html")
+    if os.path.exists(dashboard_file):
+        return FileResponse(dashboard_file)
+    return {"error": "Dashboard page not found"}
 
 
 if __name__ == "__main__":
