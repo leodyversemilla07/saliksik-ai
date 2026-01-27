@@ -84,12 +84,16 @@ async def check_plagiarism(
 
 
 @router.get("/stats", response_model=PlagiarismIndexStats)
-async def get_plagiarism_stats():
+async def get_plagiarism_stats(
+    current_user: AuthenticatedUser
+):
     """
     Get plagiarism detection index statistics.
     
     Returns information about the plagiarism detection system
     including number of indexed documents and configuration.
+    
+    Requires authentication.
     """
     detector = get_plagiarism_detector()
     stats = detector.get_index_stats()
