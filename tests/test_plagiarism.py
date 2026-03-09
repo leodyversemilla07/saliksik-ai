@@ -50,10 +50,23 @@ async def test_plagiarism_check_authenticated(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_plagiarism_stats(client):
-    """Test plagiarism stats endpoint."""
-    response = await client.get("/api/v1/plagiarism/stats")
-    
+async def test_plagiarism_stats(client, db_session):
+    """Test plagiarism stats endpoint (requires authentication)."""
+    # Register and login to get a token
+    await client.post("/api/v1/auth/register", json={
+        "username": "statsuser",
+        "email": "statsuser@example.com",
+        "password": "password123"
+    })
+    login_res = await client.post("/api/v1/auth/login", data={
+        "username": "statsuser",
+        "password": "password123"
+    })
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get("/api/v1/plagiarism/stats", headers=headers)
+
     assert response.status_code == 200
     data = response.json()
     assert "documents_indexed" in data

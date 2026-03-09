@@ -21,11 +21,18 @@ async def test_health_check():
 
 @pytest.mark.asyncio
 async def test_root_endpoint():
-    """Verify the root endpoint information."""
+    """Verify the root endpoint returns 200 (serves landing page or JSON info)."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/")
         assert response.status_code == 200
-        data = response.json()
-        assert "name" in data
-        assert "docs" in data
+        # The endpoint serves static/index.html when present (HTML response),
+        # or falls back to a JSON info dict when no static file exists.
+        content_type = response.headers.get("content-type", "")
+        if "application/json" in content_type:
+            data = response.json()
+            assert "name" in data
+            assert "docs" in data
+        else:
+            # HTML landing page — just verify it has some content
+            assert len(response.content) > 0
