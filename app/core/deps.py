@@ -14,11 +14,8 @@ from app.models.user import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
 
-# Type aliases for common dependencies
+# DbSession can be defined immediately since get_db is already imported
 DbSession = Annotated[AsyncSession, Depends(get_db)]
-CurrentUser = Annotated[User, Depends(lambda: get_current_user)]
-AuthenticatedUser = Annotated[User, Depends(lambda: get_authenticated_user)]
-OptionalUser = Annotated[Optional[User], Depends(lambda: get_current_user_optional)]
 
 
 async def get_user_by_api_key(
@@ -113,3 +110,9 @@ async def get_current_user_optional(
         return await get_current_user(token, db)
     except HTTPException:
         return None
+
+
+# Type aliases defined AFTER function definitions to avoid forward-reference errors
+CurrentUser = Annotated[User, Depends(get_current_user)]
+AuthenticatedUser = Annotated[User, Depends(get_authenticated_user)]
+OptionalUser = Annotated[Optional[User], Depends(get_current_user_optional)]

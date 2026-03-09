@@ -203,12 +203,12 @@ async def update_my_reviewer_profile(
 
 @router.get("/", response_model=ReviewerListResponse)
 async def list_reviewers(
+    db: DbSession,
+    current_user: AuthenticatedUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     available_only: bool = Query(False),
     keyword: Optional[str] = Query(None),
-    db: DbSession,
-    current_user: AuthenticatedUser
 ):
     """
     List all reviewers with optional filtering.
@@ -255,10 +255,10 @@ async def list_reviewers(
 @router.get("/analysis/{analysis_id}/suggestions", response_model=ReviewerSuggestionsResponse)
 async def get_reviewer_suggestions(
     analysis_id: int,
+    db: DbSession,
+    current_user: AuthenticatedUser,
     top_n: int = Query(5, ge=1, le=20),
     min_score: float = Query(0.1, ge=0.0, le=1.0),
-    db: DbSession,
-    current_user: AuthenticatedUser
 ):
     """
     Get reviewer suggestions for a manuscript analysis.
@@ -444,9 +444,9 @@ async def assign_reviewer(
 
 @router.get("/my-assignments", response_model=List[ReviewerMatchResponse])
 async def get_my_assignments(
-    status_filter: Optional[str] = Query(None),
     db: DbSession,
-    current_user: AuthenticatedUser
+    current_user: AuthenticatedUser,
+    status_filter: Optional[str] = Query(None),
 ):
     """Get review assignments for the current user's reviewer profile."""
     # Get user's reviewer profile

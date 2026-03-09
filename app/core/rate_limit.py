@@ -1,5 +1,5 @@
 """
-Rate limiting middleware using in-memory or Redis backend.
+Rate limiting middleware using Redis backend (shared with cache) or in-memory fallback.
 """
 import time
 import logging
@@ -11,25 +11,17 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Try to import Redis
-REDIS_AVAILABLE = False
-redis_client = None
-
+# Reuse the Redis client already established by cache.py to avoid duplicate connections
 try:
-    import redis as redis_lib
-    if settings.REDIS_URL:
-        try:
-            redis_client = redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
-            # Test connection
-            redis_client.ping()
-            REDIS_AVAILABLE = True
-            logger.info("Redis connection established for rate limiting")
-        except (redis_lib.exceptions.ConnectionError, redis_lib.exceptions.RedisError) as e:
-            logger.warning(f"Redis not available for rate limiting: {e}. Using in-memory fallback.")
-            redis_client = None
-            REDIS_AVAILABLE = False
-except ImportError:
-    logger.info("Redis library not installed. Using in-memory rate limiter.")
+    from app.core.cache import redis_client, REDIS_AVAILABLE
+    if REDIS_AVAILABLE and redis_client:
+        logger.info("Rate limiter using shared Redis connection")
+    else:
+        logger.info("Rate limiter using in-memory fallback (Redis unavailable)")
+except Exception as e:
+    redis_client = None
+    REDIS_AVAILABLE = False
+    logger.warning(f"Rate limiter could not import Redis client: {e}. Using in-memory fallback.")
 
 
 class InMemoryRateLimiter:
@@ -127,10 +119,8 @@ def parse_rate_limit(rate_limit_str: str) -> Tuple[int, int]:
 # Create global rate limiter instance
 if REDIS_AVAILABLE and redis_client:
     rate_limiter = RedisRateLimiter(redis_client)
-    logger.info("Using Redis-based rate limiter")
 else:
     rate_limiter = InMemoryRateLimiter()
-    logger.info("Using in-memory rate limiter")
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

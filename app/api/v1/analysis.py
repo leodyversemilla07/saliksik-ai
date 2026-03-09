@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional, Annotated
+import asyncio
 import time
 import logging
 from app.core.database import get_db
@@ -61,9 +62,10 @@ async def pre_review(
             
             content = await manuscript_file.read()
             from io import BytesIO
-            # Note: PDF extraction is still sync here, ideally should be in task too if heavy
-            # For now keeping it here to fail fast on bad PDFs
-            manuscript_text = pre_reviewer.extract_text_from_pdf(BytesIO(content))
+            loop = asyncio.get_event_loop()
+            manuscript_text = await loop.run_in_executor(
+                None, pre_reviewer.extract_text_from_pdf, BytesIO(content)
+            )
             
             if not manuscript_text or not manuscript_text.strip():
                 raise HTTPException(

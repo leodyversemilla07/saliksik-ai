@@ -14,8 +14,20 @@ TOKEN_TYPE_REFRESH = "refresh"
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# In-memory token blacklist (use Redis in production)
+# Redis key prefix for token blacklist entries
+_BLACKLIST_PREFIX = "blacklist:token:"
+
+# In-memory fallback blacklist (used when Redis is unavailable)
 _token_blacklist: set = set()
+
+
+def _get_redis():
+    """Lazily import Redis client to avoid circular imports at module load."""
+    try:
+        from app.core.cache import redis_client, REDIS_AVAILABLE
+        return redis_client, REDIS_AVAILABLE
+    except Exception:
+        return None, False
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -110,21 +122,31 @@ def decode_refresh_token(token: str) -> Optional[dict]:
 
 
 def blacklist_token(token: str) -> bool:
-    """Add a token to the blacklist."""
+    """Add a token to the blacklist (Redis-backed with in-memory fallback)."""
     try:
         payload = jwt.decode(
-            token, 
-            settings.SECRET_KEY, 
+            token,
+            settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
             options={"verify_exp": False}  # Allow expired tokens to be blacklisted
         )
         jti = payload.get("jti")
-        if jti:
-            _token_blacklist.add(jti)
-            return True
-        # For tokens without jti, hash the token itself
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        _token_blacklist.add(token_hash)
+        identifier = jti if jti else hashlib.sha256(token.encode()).hexdigest()
+
+        # TTL = remaining lifetime of the token + 60s buffer so the key self-cleans
+        exp = payload.get("exp")
+        if exp:
+            remaining = int(exp - datetime.now(timezone.utc).timestamp())
+            ttl = max(remaining, 0) + 60
+        else:
+            ttl = int(timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS).total_seconds())
+
+        redis_client, redis_available = _get_redis()
+        if redis_available and redis_client:
+            redis_client.setex(f"{_BLACKLIST_PREFIX}{identifier}", ttl, "1")
+        else:
+            _token_blacklist.add(identifier)
+
         return True
     except JWTError:
         return False
@@ -132,6 +154,9 @@ def blacklist_token(token: str) -> bool:
 
 def is_token_blacklisted(jti: str) -> bool:
     """Check if a token ID is blacklisted."""
+    redis_client, redis_available = _get_redis()
+    if redis_available and redis_client:
+        return redis_client.exists(f"{_BLACKLIST_PREFIX}{jti}") > 0
     return jti in _token_blacklist
 
 

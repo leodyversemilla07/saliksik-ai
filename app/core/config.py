@@ -2,8 +2,10 @@
 Application configuration using Pydantic Settings.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from typing import List, Optional
 import os
+import json
 
 
 class Settings(BaseSettings):
@@ -35,13 +37,24 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
-    # CORS
+    # CORS — override via env: ALLOWED_ORIGINS='["https://app.example.com"]'
+    # or comma-separated: ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                return json.loads(v)
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
     
     # File Upload
     MAX_FILE_SIZE_MB: int = 50
