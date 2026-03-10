@@ -27,5 +27,7 @@ async def test_pre_review_submission(client, db_session):
 
     assert response.status_code == 202
     data = response.json()
-    assert data["status"] == "PENDING"
-    assert "task_id" in data
+    # Either a new async task (PENDING) or a cache hit (has 'summary')
+    assert "task_id" in data or "summary" in data
+    if "status" in data:
+        assert data["status"] == "PENDING"

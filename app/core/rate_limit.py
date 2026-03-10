@@ -30,6 +30,10 @@ class InMemoryRateLimiter:
     def __init__(self):
         self._requests: dict = defaultdict(list)
     
+    def reset(self):
+        """Clear all rate limit counters (useful for testing)."""
+        self._requests.clear()
+
     def is_allowed(self, key: str, max_requests: int, window_seconds: int) -> Tuple[bool, int]:
         """
         Check if request is allowed under rate limit.
@@ -126,36 +130,48 @@ else:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Rate limiting middleware for FastAPI.
-    
-    Applies different rate limits for authenticated vs anonymous users.
+
+    Applies different rate limits for authenticated vs anonymous users,
+    with tighter limits on sensitive auth endpoints.
     """
-    
+
     # Paths to exclude from rate limiting
     EXCLUDED_PATHS = {'/health', '/docs', '/redoc', '/api/openapi.json', '/'}
+
+    # Auth endpoints get a much tighter limit to deter brute-force attacks
+    AUTH_PATHS = {'/api/v1/auth/login', '/api/v1/auth/register'}
+    AUTH_MAX_REQUESTS = 10
+    AUTH_WINDOW_SECONDS = 600  # 10 per 10 minutes
     
     async def dispatch(self, request: Request, call_next):
         # Skip rate limiting for excluded paths
         if request.url.path in self.EXCLUDED_PATHS:
             return await call_next(request)
-        
+
         # Determine client identifier
         client_id = self._get_client_id(request)
-        
-        # Check if user is authenticated
-        is_authenticated = self._is_authenticated(request)
-        
-        # Get appropriate rate limit
-        if is_authenticated:
-            max_requests, window_seconds = parse_rate_limit(settings.RATE_LIMIT_USER)
-            key_prefix = "rate:user"
+
+        # Tighter limit for auth endpoints (brute-force protection)
+        if request.url.path in self.AUTH_PATHS:
+            is_allowed, remaining = rate_limiter.is_allowed(
+                f"rate:auth:{client_id}",
+                self.AUTH_MAX_REQUESTS,
+                self.AUTH_WINDOW_SECONDS,
+            )
+            max_requests = self.AUTH_MAX_REQUESTS
+            window_seconds = self.AUTH_WINDOW_SECONDS
         else:
-            max_requests, window_seconds = parse_rate_limit(settings.RATE_LIMIT_ANON)
-            key_prefix = "rate:anon"
-        
-        rate_key = f"{key_prefix}:{client_id}"
-        
-        # Check rate limit
-        is_allowed, remaining = rate_limiter.is_allowed(rate_key, max_requests, window_seconds)
+            # General rate limit based on auth status
+            is_authenticated = self._is_authenticated(request)
+            if is_authenticated:
+                max_requests, window_seconds = parse_rate_limit(settings.RATE_LIMIT_USER)
+                key_prefix = "rate:user"
+            else:
+                max_requests, window_seconds = parse_rate_limit(settings.RATE_LIMIT_ANON)
+                key_prefix = "rate:anon"
+
+            rate_key = f"{key_prefix}:{client_id}"
+            is_allowed, remaining = rate_limiter.is_allowed(rate_key, max_requests, window_seconds)
         
         if not is_allowed:
             logger.warning(f"Rate limit exceeded for {client_id}")
@@ -208,3 +224,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization", "")
         api_key = request.headers.get("X-API-KEY", "")
         return bool(auth_header.startswith("Bearer ") or api_key)
+
+
+def reset_rate_limiter() -> None:
+    """Reset all in-memory rate limit counters. Intended for use in tests only."""
+    if isinstance(rate_limiter, InMemoryRateLimiter):
+        rate_limiter.reset()

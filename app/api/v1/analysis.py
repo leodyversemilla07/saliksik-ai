@@ -75,12 +75,17 @@ async def pre_review(
         
         # Sanitize manuscript text
         manuscript_text = sanitize_manuscript_text(manuscript_text)
-        
+
         # Validate text length
         if len(manuscript_text) < 50:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Text too short for meaningful analysis (minimum 50 characters)"
+            )
+        if len(manuscript_text) > 200_000:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Text exceeds maximum allowed length of 200,000 characters"
             )
         
         # Check cache first
@@ -286,8 +291,8 @@ async def get_history(
 
 
 @router.get("/cache/stats")
-async def cache_stats():
-    """Get cache statistics."""
+async def cache_stats(current_user: AuthenticatedUser):
+    """Get cache statistics (authenticated users only)."""
     stats = AIResultCache.get_cache_stats()
     return {"cache": stats, "message": "Cache statistics retrieved successfully"}
 

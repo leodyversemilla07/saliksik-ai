@@ -35,7 +35,34 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "django-insecure-change-me-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour (use env var to override)
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        insecure_defaults = {
+            "django-insecure-change-me-in-production",
+            "change-me",
+            "secret",
+            "",
+        }
+        if v in insecure_defaults:
+            import warnings
+            warnings.warn(
+                "SECRET_KEY is using an insecure default. "
+                "Set a strong random SECRET_KEY via environment variable "
+                "(min 32 characters). "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\"",
+                stacklevel=2,
+            )
+        elif len(v) < 32:
+            import warnings
+            warnings.warn(
+                f"SECRET_KEY is only {len(v)} characters. "
+                "Use at least 32 characters for adequate security.",
+                stacklevel=2,
+            )
+        return v
     
     # CORS — override via env: ALLOWED_ORIGINS='["https://app.example.com"]'
     # or comma-separated: ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com

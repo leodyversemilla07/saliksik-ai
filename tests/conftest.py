@@ -113,6 +113,14 @@ async def db_session(db_engine):
         # Rollback after each test to keep DB clean
         await session.rollback()
 
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    """Disable rate limiting for all tests — tested separately in test_rate_limit.py."""
+    with patch('app.core.rate_limit.rate_limiter') as mock_rl:
+        mock_rl.is_allowed.return_value = (True, 999)
+        yield
+
+
 @pytest.fixture(scope="function")
 async def client(db_session, db_engine, sync_db_engine):
     # Override the get_db dependency to use our test session

@@ -260,13 +260,15 @@ async def refresh_access_token(
             detail="User not found or inactive"
         )
     
-    # Create new access token
-    access_token = create_access_token(data={"sub": str(user.id)})
-    
+    # Create new token pair, blacklist old refresh token (rotation)
+    blacklist_token(request.refresh_token)
+    access_token, new_refresh_token = create_token_pair(user.id)
+
     logger.info(f"Access token refreshed for user: {user.username}")
-    
+
     return RefreshTokenResponse(
         access_token=access_token,
+        refresh_token=new_refresh_token,
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
