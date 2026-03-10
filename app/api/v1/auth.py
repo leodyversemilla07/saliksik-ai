@@ -11,7 +11,8 @@ from app.core.database import get_db
 from app.core.security import (
     verify_password, get_password_hash, create_access_token,
     create_token_pair, decode_refresh_token, blacklist_token,
-    generate_api_key, ACCESS_TOKEN_EXPIRE_MINUTES
+    generate_api_key, ACCESS_TOKEN_EXPIRE_MINUTES,
+    is_account_locked, record_failed_login, clear_failed_logins
 )
 from app.models.user import User
 from app.schemas.user import (
@@ -21,6 +22,7 @@ from app.schemas.user import (
     LogoutRequest, PasswordChangeRequest
 )
 from app.core.deps import get_current_user, DbSession, CurrentUser
+from app.core.config import settings
 from app.core.security_utils import validate_email, validate_username, validate_password, sanitize_string
 import logging
 
@@ -189,18 +191,38 @@ async def login(
     Returns access token (short-lived) and refresh token (long-lived).
     """
     
+    # Check if account is locked out
+    is_locked, seconds_remaining = is_account_locked(form_data.username)
+    if is_locked:
+        minutes_left = (seconds_remaining // 60) + 1
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Account temporarily locked due to too many failed attempts. Try again in {minutes_left} minute(s).",
+            headers={"Retry-After": str(seconds_remaining)},
+        )
+
     # Find user
     stmt = select(User).filter(User.username == form_data.username)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
+        attempt_count = record_failed_login(form_data.username)
+        remaining_attempts = max(0, settings.MAX_LOGIN_ATTEMPTS - attempt_count)
+        if remaining_attempts == 0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account locked after too many failed attempts. Try again in {settings.LOCKOUT_MINUTES} minute(s).",
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail=f"Incorrect username or password. {remaining_attempts} attempt(s) remaining before lockout.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Clear failed login counter on success
+    clear_failed_logins(form_data.username)
+
     # Update last login
     user.last_login = datetime.now(timezone.utc)
     await db.commit()

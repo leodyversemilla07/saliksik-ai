@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour (use env var to override)
 
+    # Account lockout
+    MAX_LOGIN_ATTEMPTS: int = 5   # Failed attempts before lockout
+    LOCKOUT_MINUTES: int = 15     # Duration of account lockout
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:

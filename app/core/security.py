@@ -14,11 +14,17 @@ TOKEN_TYPE_REFRESH = "refresh"
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Redis key prefix for token blacklist entries
+# Redis key prefixes for token blacklist entries
 _BLACKLIST_PREFIX = "blacklist:token:"
+_LOCKOUT_ATTEMPTS_PREFIX = "lockout:attempts:"
+_LOCKOUT_UNTIL_PREFIX = "lockout:until:"
 
 # In-memory fallback blacklist (used when Redis is unavailable)
 _token_blacklist: set = set()
+
+# In-memory fallback for login attempt tracking
+_failed_attempts: dict = {}
+_locked_until: dict = {}
 
 
 def _get_redis():
@@ -158,6 +164,87 @@ def is_token_blacklisted(jti: str) -> bool:
     if redis_available and redis_client:
         return redis_client.exists(f"{_BLACKLIST_PREFIX}{jti}") > 0
     return jti in _token_blacklist
+
+
+def is_account_locked(username: str) -> tuple:
+    """
+    Check if an account is locked due to too many failed login attempts.
+    Returns (is_locked: bool, seconds_remaining: int).
+    """
+    redis_client, redis_available = _get_redis()
+    if redis_available and redis_client:
+        raw = redis_client.get(f"{_LOCKOUT_UNTIL_PREFIX}{username}")
+        if raw:
+            locked_until = datetime.fromtimestamp(float(raw), tz=timezone.utc)
+            remaining = (locked_until - datetime.now(timezone.utc)).total_seconds()
+            if remaining > 0:
+                return True, int(remaining)
+            redis_client.delete(f"{_LOCKOUT_UNTIL_PREFIX}{username}")
+            redis_client.delete(f"{_LOCKOUT_ATTEMPTS_PREFIX}{username}")
+    else:
+        locked_until = _locked_until.get(username)
+        if locked_until:
+            remaining = (locked_until - datetime.now(timezone.utc)).total_seconds()
+            if remaining > 0:
+                return True, int(remaining)
+            _locked_until.pop(username, None)
+            _failed_attempts.pop(username, None)
+    return False, 0
+
+
+def record_failed_login(username: str) -> int:
+    """
+    Record a failed login attempt for a username.
+    Locks the account if MAX_LOGIN_ATTEMPTS is reached.
+    Returns the current attempt count.
+    """
+    redis_client, redis_available = _get_redis()
+    window_seconds = settings.LOCKOUT_MINUTES * 60
+
+    if redis_available and redis_client:
+        key = f"{_LOCKOUT_ATTEMPTS_PREFIX}{username}"
+        count = redis_client.incr(key)
+        redis_client.expire(key, window_seconds)
+        if count >= settings.MAX_LOGIN_ATTEMPTS:
+            locked_until = datetime.now(timezone.utc) + timedelta(minutes=settings.LOCKOUT_MINUTES)
+            redis_client.setex(
+                f"{_LOCKOUT_UNTIL_PREFIX}{username}",
+                window_seconds,
+                str(locked_until.timestamp()),
+            )
+        return count
+    else:
+        _failed_attempts[username] = _failed_attempts.get(username, 0) + 1
+        count = _failed_attempts[username]
+        if count >= settings.MAX_LOGIN_ATTEMPTS:
+            _locked_until[username] = datetime.now(timezone.utc) + timedelta(minutes=settings.LOCKOUT_MINUTES)
+        return count
+
+
+def clear_failed_logins(username: str) -> None:
+    """Clear failed login counters after a successful login."""
+    redis_client, redis_available = _get_redis()
+    if redis_available and redis_client:
+        redis_client.delete(f"{_LOCKOUT_ATTEMPTS_PREFIX}{username}")
+        redis_client.delete(f"{_LOCKOUT_UNTIL_PREFIX}{username}")
+    else:
+        _failed_attempts.pop(username, None)
+        _locked_until.pop(username, None)
+
+
+def reset_login_attempts() -> None:
+    """Clear all in-memory login attempt state (for tests only)."""
+    _failed_attempts.clear()
+    _locked_until.clear()
+    # Also purge Redis lockout keys when Redis is available
+    redis_client, redis_available = _get_redis()
+    if redis_available and redis_client:
+        keys = (
+            redis_client.keys(f"{_LOCKOUT_ATTEMPTS_PREFIX}*") +
+            redis_client.keys(f"{_LOCKOUT_UNTIL_PREFIX}*")
+        )
+        if keys:
+            redis_client.delete(*keys)
 
 
 def generate_api_key() -> str:
