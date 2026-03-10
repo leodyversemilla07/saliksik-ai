@@ -1,11 +1,13 @@
 """
 Authentication endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+import secrets
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 from app.core.database import get_db
 from app.core.security import (
@@ -19,15 +21,43 @@ from app.schemas.user import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     RefreshTokenRequest, RefreshTokenResponse,
     ApiKeyResponse, ApiKeyRotateResponse,
-    LogoutRequest, PasswordChangeRequest
+    LogoutRequest, PasswordChangeRequest,
+    VerifyEmailResponse, ResendVerificationResponse
 )
 from app.core.deps import get_current_user, DbSession, CurrentUser
 from app.core.config import settings
 from app.core.security_utils import validate_email, validate_username, validate_password, sanitize_string
+from app.core.email import send_verification_email_async_safe
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Email verification helpers
+# ---------------------------------------------------------------------------
+
+def _create_email_verification_token() -> str:
+    """Generate a cryptographically secure verification token."""
+    return secrets.token_urlsafe(32)
+
+
+async def _save_verification_token(db: AsyncSession, user: User, token: str) -> None:
+    """Persist the verification token (with expiry) on the user row."""
+    user.verification_token = token
+    user.verification_token_expires_at = datetime.now(timezone.utc) + timedelta(
+        hours=settings.EMAIL_VERIFY_EXPIRE_HOURS
+    )
+    await db.commit()
+    await db.refresh(user)
+
+
+def _send_verification_email_background(email: str, username: str, token: str) -> None:
+    """Schedule email sending in a background thread (fire-and-forget)."""
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, send_verification_email_async_safe, email, username, token)
+
 
 
 @router.post("/api-key", response_model=ApiKeyResponse)
@@ -148,12 +178,18 @@ async def register(user_data: UserRegister, db: DbSession):
     new_user = User(
         username=clean_username,
         email=clean_email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        is_email_verified=False,
     )
     
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
+    
+    # Generate email verification token and schedule email (fire-and-forget)
+    verification_token = _create_email_verification_token()
+    await _save_verification_token(db, new_user, verification_token)
+    _send_verification_email_background(new_user.email, new_user.username, verification_token)
     
     # Create access and refresh tokens
     access_token, refresh_token = create_token_pair(new_user.id)
@@ -354,3 +390,90 @@ async def change_password(
     logger.info(f"Password changed for user: {current_user.username}")
     
     return {"message": "Password changed successfully"}
+
+
+# ---------------------------------------------------------------------------
+# Email verification endpoints
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/verify-email",
+    response_model=VerifyEmailResponse,
+    summary="Verify email address using a verification token",
+    responses={
+        400: {"description": "Invalid or expired token"},
+    }
+)
+async def verify_email(
+    token: str = Query(..., description="Verification token received via email"),
+    db: DbSession = ...,  # injected via Annotated[..., Depends(get_db)]
+):
+    """
+    Verify a user's email address.
+
+    Supply the **token** query parameter that was sent to the user's email
+    upon registration (or re-sent via `/resend-verification`).
+    """
+    now = datetime.now(timezone.utc)
+    stmt = select(User).where(User.verification_token == token)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+
+    # Make expires_at timezone-aware for comparison (SQLite stores naive UTC)
+    token_expires = user.verification_token_expires_at
+    if token_expires is not None and token_expires.tzinfo is None:
+        token_expires = token_expires.replace(tzinfo=timezone.utc)
+
+    if token_expires is None or now > token_expires:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+
+    user.is_email_verified = True
+    user.verification_token = None
+    user.verification_token_expires_at = None
+    await db.commit()
+
+    logger.info("Email verified for user: %s", user.username)
+    return VerifyEmailResponse()
+
+
+@router.post(
+    "/resend-verification",
+    response_model=ResendVerificationResponse,
+    summary="Resend email verification link",
+    responses={
+        400: {"description": "Email already verified"},
+    }
+)
+async def resend_verification(
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """
+    Re-send the verification email for the currently authenticated user.
+
+    Returns 400 if the email is already verified.
+    """
+    if current_user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already verified"
+        )
+
+    verification_token = _create_email_verification_token()
+    await _save_verification_token(db, current_user, verification_token)
+    _send_verification_email_background(
+        current_user.email, current_user.username, verification_token
+    )
+
+    logger.info("Verification email resent for user: %s", current_user.username)
+    return ResendVerificationResponse()
+

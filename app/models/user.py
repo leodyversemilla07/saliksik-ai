@@ -1,6 +1,3 @@
-"""
-User model for authentication.
-"""
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -24,6 +21,9 @@ class User(Base):
     api_key = Column(String, unique=True, index=True, nullable=True)
     role = Column(String, default="user", index=True, nullable=False)
     is_active = Column(Boolean, default=True)
+    is_email_verified = Column(Boolean, default=False, nullable=False)
+    verification_token = Column(String, unique=True, index=True, nullable=True)
+    verification_token_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utc_now)
     last_login = Column(DateTime, nullable=True)
     

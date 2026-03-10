@@ -115,6 +115,16 @@ class Settings(BaseSettings):
     SUPPORTED_LANGUAGES: str = "en,es,fr,de"  # Comma-separated
     DEFAULT_LANGUAGE: str = "en"
     AUTO_DETECT_LANGUAGE: bool = True
+
+    # Email / SMTP
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@saliksik.ai"
+    SMTP_FROM_NAME: str = "Saliksik AI"
+    EMAIL_VERIFY_EXPIRE_HOURS: int = 24
+    FRONTEND_URL: str = "http://localhost:3000"
     
     model_config = SettingsConfigDict(
         env_file=".env",

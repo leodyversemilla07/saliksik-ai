@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     email: str
     role: str = "user"
     is_active: bool
+    is_email_verified: bool = False
     created_at: datetime
     last_login: Optional[datetime] = None
     
@@ -77,3 +78,14 @@ class PasswordChangeRequest(BaseModel):
     """Password change request."""
     current_password: str
     new_password: str = Field(..., min_length=8)
+
+
+class VerifyEmailResponse(BaseModel):
+    """Response after successful email verification."""
+    message: str = "Email verified successfully"
+    is_email_verified: bool = True
+
+
+class ResendVerificationResponse(BaseModel):
+    """Response after requesting a new verification email."""
+    message: str = "Verification email sent"
