@@ -173,3 +173,44 @@ async def test_reviewers_requires_auth(client):
         "expertise_keywords": ["test"]
     })
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_list_does_not_expose_email(client, db_session):
+    """Reviewer list must NOT expose email or user_id (IDOR prevention)."""
+    # Create a reviewer (user A)
+    headers_a = await get_auth_headers(client, "idor_reviewer", "idor_reviewer@secret.com")
+    await client.post(
+        "/api/v1/reviewers/",
+        json={"expertise_keywords": ["security", "privacy"]},
+        headers=headers_a,
+    )
+
+    # User B lists reviewers
+    headers_b = await get_auth_headers(client, "idor_viewer", "idor_viewer@example.com")
+    response = await client.get("/api/v1/reviewers/", headers=headers_b)
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) >= 1
+
+    for reviewer in results:
+        assert "email" not in reviewer, "email must not be in public reviewer list"
+        assert "user_id" not in reviewer, "user_id must not be in public reviewer list"
+
+
+@pytest.mark.asyncio
+async def test_own_profile_exposes_full_details(client, db_session):
+    """Owner's /me endpoint should still expose email and user_id."""
+    headers = await get_auth_headers(client, "idor_owner", "idor_owner@example.com")
+    await client.post(
+        "/api/v1/reviewers/",
+        json={"expertise_keywords": ["mathematics"]},
+        headers=headers,
+    )
+
+    response = await client.get("/api/v1/reviewers/me", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "email" in data
+    assert "user_id" in data

@@ -80,6 +80,24 @@ class ReviewerUpdate(BaseModel):
     )
 
 
+class ReviewerPublicResponse(BaseModel):
+    """Public response schema for reviewer profile (safe for any authenticated user to see).
+
+    Omits PII (email) and internal fields (user_id, assignment counters, timestamps).
+    """
+    id: int
+    username: str
+    expertise_keywords: List[str]
+    expertise_description: Optional[str] = None
+    institution: Optional[str] = None
+    department: Optional[str] = None
+    orcid_id: Optional[str] = None
+    is_available: bool
+    available_slots: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ReviewerResponse(BaseModel):
     """Response schema for reviewer profile."""
     id: int
@@ -104,7 +122,6 @@ class ReviewerResponse(BaseModel):
 class ReviewerSuggestion(BaseModel):
     """A suggested reviewer match for a manuscript."""
     reviewer_id: int
-    user_id: int
     username: str
     match_score: float = Field(..., ge=0.0, le=1.0, description="Match score (0-1)")
     matched_keywords: List[str] = Field(default_factory=list)
@@ -159,8 +176,8 @@ class ReviewerMatchStatus(BaseModel):
 
 
 class ReviewerListResponse(BaseModel):
-    """Paginated list of reviewers."""
-    results: List[ReviewerResponse]
+    """Paginated list of reviewers (public view)."""
+    results: List[ReviewerPublicResponse]
     total_count: int
     page: int
     page_size: int

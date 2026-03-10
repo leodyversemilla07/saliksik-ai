@@ -18,6 +18,7 @@ from app.models.analysis import ManuscriptAnalysis
 from app.schemas.reviewer import (
     ReviewerCreate,
     ReviewerUpdate,
+    ReviewerPublicResponse,
     ReviewerResponse,
     ReviewerSuggestion,
     ReviewerMatchResponse,
@@ -34,7 +35,7 @@ router = APIRouter()
 
 
 def _reviewer_to_response(reviewer: Reviewer) -> ReviewerResponse:
-    """Convert Reviewer model to response schema."""
+    """Convert Reviewer model to full response schema (owner-only view)."""
     return ReviewerResponse(
         id=reviewer.id,
         user_id=reviewer.user_id,
@@ -51,6 +52,21 @@ def _reviewer_to_response(reviewer: Reviewer) -> ReviewerResponse:
         available_slots=reviewer.available_slots,
         created_at=reviewer.created_at,
         updated_at=reviewer.updated_at
+    )
+
+
+def _reviewer_to_public_response(reviewer: Reviewer) -> ReviewerPublicResponse:
+    """Convert Reviewer model to public response schema (safe for any authenticated user)."""
+    return ReviewerPublicResponse(
+        id=reviewer.id,
+        username=reviewer.user.username if reviewer.user else "Unknown",
+        expertise_keywords=reviewer.expertise_keywords or [],
+        expertise_description=reviewer.expertise_description,
+        institution=reviewer.institution,
+        department=reviewer.department,
+        orcid_id=reviewer.orcid_id,
+        is_available=reviewer.is_available,
+        available_slots=reviewer.available_slots,
     )
 
 
@@ -243,7 +259,7 @@ async def list_reviewers(
     reviewers = result.scalars().all()
     
     return ReviewerListResponse(
-        results=[_reviewer_to_response(r) for r in reviewers],
+        results=[_reviewer_to_public_response(r) for r in reviewers],
         total_count=total_count,
         page=page,
         page_size=page_size,
@@ -316,7 +332,6 @@ async def get_reviewer_suggestions(
         suggestions=[
             ReviewerSuggestion(
                 reviewer_id=s.reviewer_id,
-                user_id=s.user_id,
                 username=s.username,
                 match_score=s.match_score,
                 matched_keywords=s.matched_keywords,
