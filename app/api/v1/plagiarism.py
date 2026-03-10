@@ -8,7 +8,7 @@ from typing import Annotated
 import logging
 
 from app.core.database import get_db
-from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser
+from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser, AdminUser
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.plagiarism import (
@@ -104,7 +104,7 @@ async def get_plagiarism_stats(
 @router.post("/index/rebuild")
 async def rebuild_plagiarism_index(
     db: DbSession,
-    current_user: AuthenticatedUser
+    current_user: AdminUser
 ):
     """
     Rebuild the plagiarism detection index from database.

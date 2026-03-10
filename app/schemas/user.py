@@ -24,6 +24,7 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: str
+    role: str = "user"
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None

@@ -116,3 +116,19 @@ async def get_current_user_optional(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AuthenticatedUser = Annotated[User, Depends(get_authenticated_user)]
 OptionalUser = Annotated[Optional[User], Depends(get_current_user_optional)]
+
+
+async def get_admin_user(current_user: AuthenticatedUser) -> User:
+    """
+    Dependency that requires the current user to have admin role.
+    Raises 403 Forbidden if the user is not an admin.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required.",
+        )
+    return current_user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]

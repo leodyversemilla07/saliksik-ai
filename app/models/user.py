@@ -22,6 +22,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     api_key = Column(String, unique=True, index=True, nullable=True)
+    role = Column(String, default="user", index=True, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utc_now)
     last_login = Column(DateTime, nullable=True)

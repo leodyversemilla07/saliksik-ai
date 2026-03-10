@@ -9,7 +9,7 @@ import asyncio
 import time
 import logging
 from app.core.database import get_db
-from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser
+from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser, AdminUser
 from app.core.cache import AIResultCache
 from app.models.user import User
 from app.models.analysis import ManuscriptAnalysis, ProcessingError
@@ -291,15 +291,15 @@ async def get_history(
 
 
 @router.get("/cache/stats")
-async def cache_stats(current_user: AuthenticatedUser):
-    """Get cache statistics (authenticated users only)."""
+async def cache_stats(current_user: AdminUser):
+    """Get cache statistics (admin only)."""
     stats = AIResultCache.get_cache_stats()
     return {"cache": stats, "message": "Cache statistics retrieved successfully"}
 
 
 @router.post("/cache/clear")
-async def clear_cache(current_user: AuthenticatedUser):
-    """Clear cache (authenticated users only)."""
+async def clear_cache(current_user: AdminUser):
+    """Clear cache (admin only)."""
     success = AIResultCache.clear_all_cache()
     return {
         "message": "Cache cleared successfully" if success else "Failed to clear cache",
