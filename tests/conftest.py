@@ -48,6 +48,11 @@ sys.modules["app.services.reviewer_matcher"] = reviewer_matcher_mock
 
 sys.modules["app.services.plagiarism_checker"] = MagicMock()
 
+# Mock the Celery task so .delay() returns immediately instead of running
+celery_task_mock = MagicMock()
+celery_task_mock.delay.return_value = MagicMock(id="fake-task-id-123")
+sys.modules["app.tasks.analysis"] = celery_task_mock
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import create_engine
