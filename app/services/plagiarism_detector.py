@@ -228,7 +228,7 @@ class PlagiarismDetector:
     def check_similarity(
         self,
         text: str,
-        db: Optional[Session] = None,
+        db = None,  # unused, kept for backward compat
         exclude_ids: Optional[List[int]] = None
     ) -> PlagiarismResult:
         """
