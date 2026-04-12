@@ -2,6 +2,7 @@
 Tests for the cache module (in-memory fallback and Redis).
 """
 import time
+from unittest.mock import patch, MagicMock
 import pytest
 from app.core.cache import (
     AIResultCache,
@@ -13,10 +14,12 @@ from app.core.cache import (
 
 
 @pytest.fixture(autouse=True)
-def clear_cache():
-    """Clear in-memory cache before and after each test."""
+def force_memory_cache():
+    """Force in-memory cache for all cache tests, even when Redis is available."""
     _memory_cache.clear()
-    yield
+    with patch("app.core.cache.REDIS_AVAILABLE", False), \
+         patch("app.core.cache.redis_client", None):
+        yield
     _memory_cache.clear()
 
 
