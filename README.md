@@ -2,9 +2,9 @@
 
 **AI-powered manuscript pre-review system for Research Journal Management**
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com)
+[![CI](https://github.com/leodyversemilla07/saliksik-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/leodyversemilla07/saliksik-ai/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.127-green.svg)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Saliksik AI streamlines the initial manuscript review process by automatically analyzing submitted manuscripts, providing editors and reviewers with instant insights on content quality, readability, and key themes before formal peer review begins.
@@ -13,36 +13,60 @@ Saliksik AI streamlines the initial manuscript review process by automatically a
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [API Documentation](docs/API_REFERENCE.md)
-- [Architecture](#-architecture)
-- [Development](docs/CONTRIBUTING.md#development-setup)
-- [Deployment](docs/DEPLOYMENT.md)
-- [Contributing](docs/CONTRIBUTING.md)
-- [License](#-license)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Development](#development)
+- [License](#license)
 
 ---
 
 ## Features
 
 ### Core Capabilities
-- **AI-Powered Summarization** - Automatic manuscript summarization using BART transformer model
-- **Keyword Extraction** - TF-IDF based keyword identification for categorization
-- **Language Quality Analysis** - Grammar checking, readability scoring (Flesch Reading Ease), and linguistic metrics
-- **PDF Support** - Direct PDF manuscript upload with text extraction
-- **Smart Caching** - Redis-based caching with 40-100x speedup on repeated queries
-- **User Management** - JWT-based authentication for editorial staff and reviewers
+
+- **AI-Powered Summarization** — DistilBART transformer model for abstractive summarization (306M params, ~600MB)
+- **Keyword Extraction** — YAKE algorithm for unsupervised keyword identification, no training data needed
+- **Readability Scoring** — Flesch Reading Ease, Flesch-Kincaid Grade, Automated Readability Index via textstat
+- **Plagiarism Detection** — MinHash LSH for efficient document similarity checking
+- **Reviewer Matching** — Semantic similarity matching using sentence-transformers (all-MiniLM-L6-v2)
+- **PDF Support** — Direct PDF upload with text extraction via pypdf
+- **Smart Caching** — Redis-backed caching with in-memory fallback and auto-eviction
+- **User Management** — JWT auth with access/refresh token rotation, API keys, RBAC, account lockout
 
 ### Technical Features
-- **High Performance** - FastAPI framework provides 2-3x faster response times
-- **Auto-Generated Docs** - Interactive Swagger UI and ReDoc documentation
-- **Async Processing** - Celery task queue for large document processing
-- **Docker Ready** - Full containerization with Docker Compose orchestration
-- **Database Optimization** - PostgreSQL with connection pooling and indexing
-- **Security** - JWT authentication, rate limiting, input validation
+
+- **Async Everything** — FastAPI + async SQLAlchemy + Celery task queue
+- **Auto-Generated Docs** — Interactive Swagger UI and ReDoc at `/docs`
+- **Docker Ready** — Docker Compose with PostgreSQL, Redis, and health checks
+- **CI/CD** — GitHub Actions with linting (ruff) and test coverage (pytest-cov)
+- **Security** — Hardened SECRET_KEY validation, input sanitization, rate limiting, security headers
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| API Framework | FastAPI 0.127 | Async, auto-docs, type-safe |
+| Database | PostgreSQL 15 + asyncpg | ACID, connection pooling |
+| Cache | Redis 7 | Low-latency caching + Celery broker |
+| Auth | python-jose + bcrypt | JWT with token rotation |
+| Summarization | DistilBART (sshleifer/distilbart-cnn-12-6) | 27% smaller than BART, near-identical quality |
+| Keywords | YAKE | Unsupervised, no training data, multilingual-ready |
+| Readability | textstat | Pure Python, accurate Flesch scores, no Java needed |
+| Plagiarism | datasketch (MinHash LSH) | O(n) similarity, scales to large corpora |
+| Embeddings | sentence-transformers (all-MiniLM-L6-v2) | 22.7M params, fast, good for semantic search |
+| Background Tasks | Celery + Redis | Async manuscript processing |
+| Testing | pytest + pytest-asyncio + httpx | 80+ tests, async test client |
+| Linting | ruff | Fast, replaces flake8 + black + isort |
+
+### Why these models?
+
+The ML stack was chosen to maximize quality per megabyte. BART-large-cnn (1.5GB) was replaced with DistilBART (600MB) for nearly identical summarization quality. language-tool-python (requires Java JRE) was replaced with textstat (pure Python). TF-IDF was replaced with YAKE for better academic keyword extraction without scikit-learn.
 
 ---
 
@@ -51,38 +75,42 @@ Saliksik AI streamlines the initial manuscript review process by automatically a
 ### Using Docker (Recommended)
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/saliksik-ai.git
+git clone https://github.com/leodyversemilla07/saliksik-ai.git
 cd saliksik-ai
 
-# Start services with Docker Compose
-docker-compose up --build
+# Configure environment
+cp .env.example .env
+# Edit .env — set SECRET_KEY and POSTGRES_PASSWORD
 
-# Access the application
-# - Interactive API Docs: http://localhost:8000/docs
-# - Alternative Docs: http://localhost:8000/redoc
-# - Health Check: http://localhost:8000/health
+# Start all services
+docker-compose up -d --build
+
+# Access:
+# - Swagger UI:  http://localhost:8000/docs
+# - ReDoc:       http://localhost:8000/redoc
+# - Health:      http://localhost:8000/health
 ```
 
 ### Manual Setup
 
 ```bash
+git clone https://github.com/leodyversemilla07/saliksik-ai.git
+cd saliksik-ai
+
 # Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Download AI models
+# Download NLP models
 python -m spacy download en_core_web_sm
 python -c "import nltk; nltk.download('punkt')"
 
-# Configure environment
+# Configure
 cp .env.example .env
-
-# Initialize database
-python -c "from app.core.database import Base, engine; Base.metadata.create_all(bind=engine)"
+# Edit .env with your database credentials and SECRET_KEY
 
 # Start server
 uvicorn main:app --reload
@@ -96,41 +124,16 @@ uvicorn main:app --reload
 
 - Python 3.12+
 - PostgreSQL 15+
-- Redis 7+ (optional, for caching)
-- Docker & Docker Compose (for containerized deployment)
+- Redis 7+ (optional, falls back to in-memory cache)
 
-### Step-by-Step Installation
+### Environment Variables
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/saliksik-ai.git
-   cd saliksik-ai
-   ```
-
-2. **Set up Python environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **Install AI models**
-   ```bash
-   python -m spacy download en_core_web_sm
-   python -c "import nltk; nltk.download('punkt')"
-   ```
-
-4. **Configure Database & Environment**
-   See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed configuration options.
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-
-5. **Run the application**
-   ```bash
-   uvicorn main:app --reload
-   ```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Yes | Min 32 chars. Generate: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `DATABASE_URL` | Yes | Async DB URL: `postgresql+asyncpg://user:pass@host:5432/dbname` |
+| `REDIS_URL` | No | Redis URL for caching. Falls back to in-memory if not set. |
+| `DEBUG` | No | Set `true` for development. Default: `false` |
 
 ---
 
@@ -138,89 +141,106 @@ uvicorn main:app --reload
 
 ### Basic Workflow
 
-1. **Register & Login**
-   Get your JWT token via `/api/v1/auth/register` and `/api/v1/auth/login`.
+1. **Register & Login** — Get a JWT token via `/api/v1/auth/register` and `/api/v1/auth/login`
 
-2. **Submit Manuscript**
-   Send text or PDF to `/api/v1/analysis/pre-review`.
+2. **Submit Manuscript** — Send text or PDF to `/api/v1/analysis/pre-review`
 
-3. **View Results**
-   Get instant analysis on language quality, keywords, and summary.
+3. **View Results** — Poll `/api/v1/analysis/status/{task_id}` for the analysis report
 
-For detailed request examples, please see the [API Reference](docs/API_REFERENCE.md).
+### Key Endpoints
 
----
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/auth/register` | POST | No | Create account |
+| `/api/v1/auth/login` | POST | No | Get JWT tokens |
+| `/api/v1/analysis/pre-review` | POST | Yes | Submit manuscript for analysis |
+| `/api/v1/analysis/demo` | POST | No | Public demo (5000 char limit) |
+| `/api/v1/analysis/history` | GET | Yes | View past analyses |
+| `/api/v1/plagiarism/check` | POST | Yes | Check for plagiarism |
+| `/api/v1/reviewers/suggest` | POST | Yes | Get reviewer suggestions |
+| `/health` | GET | No | System health check |
 
-## API Documentation
-
-> 📘 **Full API Reference**
->
-> For detailed endpoint documentation, request/response schemas, and authentication details, please see [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
-
-### Interactive Documentation
-
-Once running, you can access:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+For full API documentation, see [docs/API_REFERENCE.md](docs/API_REFERENCE.md) or the interactive Swagger UI at `/docs`.
 
 ---
 
 ## Architecture
 
-### Project Structure
-
 ```
 saliksik-ai/
 ├── app/
-│   ├── api/v1/          # API route handlers
-│   ├── core/            # Config, DB, security, caching
-│   ├── models/          # SQLAlchemy models
-│   ├── schemas/         # Pydantic schemas
-│   ├── services/        # AI business logic
-│   └── utils/           # Utilities
-├── docs/                # Project documentation
-├── tests/               # Test suite
-├── main.py              # FastAPI entry point
-└── docker-compose.yml   # Orchestration
+│   ├── api/v1/           # Route handlers (auth, analysis, plagiarism, reviewers)
+│   ├── core/             # Config, DB, security, cache, rate limiting, utils
+│   ├── models/           # SQLAlchemy ORM models
+│   ├── schemas/          # Pydantic request/response schemas
+│   ├── services/         # Business logic (AI, plagiarism, citations, reviewers)
+│   ├── tasks/            # Celery background tasks
+│   └── utils/            # Utilities (migrations)
+├── alembic/              # Database migrations
+├── docs/                 # Project documentation
+├── tests/                # Test suite (80+ tests)
+├── .github/workflows/    # CI pipeline
+├── main.py               # FastAPI entry point
+├── requirements.txt      # Production dependencies
+├── requirements-test.txt # CI dependencies (no torch)
+├── docker-compose.yml    # Full stack orchestration
+└── pytest.ini            # Test configuration
 ```
 
-For a detailed architecture breakdown, see the [Architecture Section](docs/DOCUMENTATION_INDEX.md).
+### Request Flow
+
+```
+Client → FastAPI (auth + validation) → Celery Task (async)
+                                          ↓
+                              AI Pipeline (summarize + keywords + quality)
+                                          ↓
+                              PostgreSQL (store results) → Redis (cache)
+                                          ↓
+Client ← API Response (poll status endpoint)
+```
 
 ---
 
 ## Development
 
-> 🛠️ **Developer Guide**
->
-> For development setup, testing standards, and contribution guidelines, please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
-
 ### Running Tests
 
 ```bash
-# Run system verification
-python tests/test_system.py
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests with coverage
+pytest
+
+# Run specific test file
+pytest tests/test_cache.py
+
+# Run with verbose output
+pytest -v
 ```
 
----
+### Linting
 
-## Deployment
+```bash
+pip install ruff
 
-> 🚀 **Deployment Guide**
->
-> For production deployment instructions using Docker, Nginx, and Systemd, please see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+# Check for issues
+ruff check app/
 
----
+# Auto-format
+ruff format app/
+```
 
-## Contributing
+### CI Pipeline
 
-We welcome contributions! Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on code of conduct and the pull request process.
+The GitHub Actions workflow runs on every push to `main`:
+- **Lint job** — ruff check + format verification
+- **Test job** — pytest with coverage, PostgreSQL + Redis services
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
----
-
-**Made for the research community**
+Copyright (c) 2025 Leodyver S. Semilla
