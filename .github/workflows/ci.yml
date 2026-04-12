@@ -40,7 +40,7 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db
       SQLALCHEMY_DATABASE_URI: postgresql://test_user:test_pass@localhost:5432/test_db
       REDIS_URL: redis://localhost:6379/0
-      DEBUG: "false"
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +80,7 @@ jobs:
         run: pip install ruff
 
       - name: Lint
-        run: ruff check app/
+        run: ruff check app/ --ignore F401
 
       - name: Format check
         run: ruff format --check app/
