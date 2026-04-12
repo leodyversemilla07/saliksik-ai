@@ -20,11 +20,11 @@ python-multipart==0.0.20
 spacy==3.8.7
 nltk==3.9.1
 transformers==4.57.1
-scikit-learn==1.6.1
-language-tool-python==2.8.1
 numpy==2.2.3
 pypdf==5.2.0
 torch==2.5.1
+yake==0.4.8               # Keyword extraction (replaces TF-IDF/scikit-learn)
+textstat==0.7.3            # Readability scoring (replaces language-tool-python)
 
 # Async & Background Tasks
 celery==5.5.3

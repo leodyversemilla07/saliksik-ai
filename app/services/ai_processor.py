@@ -2,25 +2,28 @@ import os
 import spacy
 from nltk.tokenize import sent_tokenize
 try:
-    from transformers import pipeline, BartTokenizer
+    from transformers import pipeline, AutoTokenizer
     _TRANSFORMERS_AVAILABLE = True
 except Exception:
     _TRANSFORMERS_AVAILABLE = False
-from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
+try:
+    import yake
+    _YAKE_AVAILABLE = True
+except ImportError:
+    _YAKE_AVAILABLE = False
+try:
+    import textstat
+    _TEXTSTAT_AVAILABLE = True
+except ImportError:
+    _TEXTSTAT_AVAILABLE = False
 import io
 from pypdf import PdfReader
 import logging
 
-# Optional language tool import
-try:
-    from language_tool_python import LanguageTool
-    LANGUAGE_TOOL_AVAILABLE = True
-except ImportError:
-    LANGUAGE_TOOL_AVAILABLE = False
-    logging.warning("LanguageTool not available. Grammar checking will be disabled.")
-
 logger = logging.getLogger(__name__)
+
+
+MODEL_NAME = "sshleifer/distilbart-cnn-12-6"  # 306M params, ~600MB (was bart-large-cnn 400M ~1.5GB)
 
 
 class ManuscriptPreReviewer:
@@ -33,15 +36,13 @@ class ManuscriptPreReviewer:
         self._summarizer = None
         self._tokenizer = None
 
-        # Initialize LanguageTool only if available; failure is non-fatal
-        self.language_tool = None
-        if LANGUAGE_TOOL_AVAILABLE:
-            try:
-                self.language_tool = LanguageTool("en-US")
-                logger.info("LanguageTool initialized successfully")
-            except Exception as e:
-                logger.warning(f"Failed to initialize LanguageTool: {str(e)}. Grammar checking will be disabled.")
-                self.language_tool = None
+        # YAKE keyword extractor
+        if _YAKE_AVAILABLE:
+            self._yake_extractor = yake.KeywordExtractor(
+                lan="en", n=3, dedupLim=0.9, top=10, features=None
+            )
+        else:
+            self._yake_extractor = None
 
     @property
     def nlp(self):
@@ -61,9 +62,9 @@ class ManuscriptPreReviewer:
             if not _TRANSFORMERS_AVAILABLE:
                 raise RuntimeError("Transformers not available but required (disable via AI_LIGHT_MODE=1)")
             try:
-                self._tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
+                self._tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
             except Exception as e:
-                logger.error(f"Failed to load BART tokenizer: {e}")
+                logger.error(f"Failed to load tokenizer: {e}")
                 raise
         return self._tokenizer
 
@@ -75,9 +76,9 @@ class ManuscriptPreReviewer:
             if not _TRANSFORMERS_AVAILABLE:
                 raise RuntimeError("Transformers not available but required (disable via AI_LIGHT_MODE=1)")
             try:
-                self._summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+                self._summarizer = pipeline("summarization", model=MODEL_NAME)
             except Exception as e:
-                logger.error(f"Failed to load BART summarizer: {e}")
+                logger.error(f"Failed to load summarizer: {e}")
                 raise
         return self._summarizer
 
@@ -147,42 +148,24 @@ class ManuscriptPreReviewer:
         return self.generate_summary_from_chunks(chunks)
 
     def extract_keywords(self, text, top_n=10):
-        """Extracts keywords using TF-IDF."""
-        vectorizer = TfidfVectorizer(stop_words="english")
-        tfidf_matrix = vectorizer.fit_transform([text])
-        feature_names = np.array(vectorizer.get_feature_names_out())
-        scores = tfidf_matrix.toarray()[0]
-        top_indices = scores.argsort()[-top_n:][::-1]
-        return feature_names[top_indices].tolist()
+        """Extracts keywords using YAKE (or TF-IDF fallback)."""
+        if self._yake_extractor:
+            keywords = self._yake_extractor.extract_keywords(text)
+            # YAKE returns (keyword, score) tuples; lower score = more relevant
+            return [kw for kw, score in keywords[:top_n]]
+        # Fallback: extract nouns via spaCy
+        doc = self.nlp(text[:10000])
+        nouns = [token.text.lower() for token in doc if token.pos_ == "NOUN" and len(token.text) > 2]
+        from collections import Counter
+        return [w for w, _ in Counter(nouns).most_common(top_n)]
 
     def assess_language_quality(self, text):
-        """Analyzes grammar, readability, and other language quality metrics."""
+        """Analyzes readability and language quality metrics."""
         doc = self.nlp(text)
-        
-        # Grammar checking (only if LanguageTool is available)
-        grammar_issues = 0
-        if self.language_tool:
-            try:
-                grammar_issues = len(self.language_tool.check(text))
-            except Exception as e:
-                logger.warning(f"Grammar checking failed: {str(e)}")
-                grammar_issues = -1  # Indicate that grammar checking failed
-        
+
         word_count = len(text.split())
         unique_words = len(set(text.split()))
         sentence_count = len(sent_tokenize(text))
-        
-        # Calculate readability score (Flesch Reading Ease)
-        if sentence_count > 0 and word_count > 0:
-            syllable_count = len([token for token in doc if token.is_alpha])  # Simplified syllable count
-            readability_score = (
-                206.835
-                - 1.015 * (word_count / sentence_count)
-                - 84.6 * (syllable_count / word_count)
-            )
-        else:
-            readability_score = 0
-        
         named_entities = len(doc.ents)
 
         quality_metrics = {
@@ -190,15 +173,23 @@ class ManuscriptPreReviewer:
             "unique_words": unique_words,
             "sentence_count": sentence_count,
             "named_entities": named_entities,
-            "readability_score": round(readability_score, 2),
         }
-        
-        # Add grammar issues only if available
-        if grammar_issues >= 0:
-            quality_metrics["grammar_issues"] = grammar_issues
-        else:
-            quality_metrics["grammar_check_available"] = False
-            
+
+        # Use textstat for accurate readability scores
+        if _TEXTSTAT_AVAILABLE and sentence_count > 0 and word_count > 10:
+            quality_metrics["readability_score"] = round(textstat.flesch_reading_ease(text), 2)
+            quality_metrics["flesch_kincaid_grade"] = round(textstat.flesch_kincaid_grade(text), 2)
+            quality_metrics["automated_readability"] = round(textstat.automated_readability_index(text), 2)
+        elif sentence_count > 0 and word_count > 0:
+            # Fallback: simplified Flesch Reading Ease
+            syllable_count = len([token for token in doc if token.is_alpha])
+            readability_score = (
+                206.835
+                - 1.015 * (word_count / sentence_count)
+                - 84.6 * (syllable_count / word_count)
+            )
+            quality_metrics["readability_score"] = round(readability_score, 2)
+
         return quality_metrics
 
     def extract_text_from_pdf(self, pdf_file):
