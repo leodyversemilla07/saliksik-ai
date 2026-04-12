@@ -1,169 +1,58 @@
-# ============================================
+# Git
+.git
+.gitignore
+
 # Python
-# ============================================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+dist
+build
 
 # Virtual environments
-env/
-venv/
-.venv/
-ENV/
-env.bak/
-venv.bak/
+.venv
+venv
+env
 
-# Python package management
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.eggs/
-*.egg-info/
-dist/
-build/
-wheels/
-
-# Testing
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-htmlcov/
-.tox/
-
-# ============================================
-# Environment & Configuration
-# ============================================
-.env
-.env.local
-.env.*.local
-.env.development
-.env.production
-*.env
-
-# ============================================
-# IDE & Editors
-# ============================================
-.vscode/
-.idea/
+# IDE
+.vscode
+.idea
 *.swp
 *.swo
-*.swn
-*~
-.project
-.settings/
-.pydevproject
 
-# ============================================
-# OS
-# ============================================
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
+# Environment files (never bake secrets into images)
+.env
+.env.*
+!.env.example
 
-# ============================================
-# Git
-# ============================================
-.git/
-.gitignore
-.gitattributes
-.gitmodules
-
-# ============================================
 # Docker
-# ============================================
-Dockerfile*
 docker-compose*.yml
+Dockerfile*
 .dockerignore
 
-# ============================================
 # Documentation
-# ============================================
 docs/
 *.md
-README*
-LICENSE
-CHANGELOG*
+!README.md
 
-# ============================================
-# Logs & Databases
-# ============================================
+# Tests
+tests/
+.pytest_cache
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Static files (generated at runtime)
+static/
+
+# Logs
 *.log
 logs/
-*.db
-*.sqlite
-*.sqlite3
-db.sqlite3
-test_suite.db
 
-# ============================================
-# AI/ML Model Files (large files)
-# ============================================
-*.pt
-*.pth
-*.h5
-*.onnx
-models/
-*.pkl
-*.pickle
-
-# ============================================
-# Static & Media
-# ============================================
-staticfiles/
-media/
-uploads/
-
-# ============================================
-# Node.js (if using frontend)
-# ============================================
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm/
-.yarn/
-package-lock.json
-yarn.lock
-
-# ============================================
-# Temporary files
-# ============================================
-*.tmp
-*.temp
-*.bak
-*.orig
-*.rej
-tmp/
-temp/
-
-# ============================================
-# AI Agent files
-# ============================================
-.agent/
-.shared/
-
-# ============================================
-# Alembic (keep only config)
-# ============================================
-alembic/versions/*.py
-!alembic/versions/__init__.py
-
-# ============================================
-# Tests (optional - comment out if needed)
-# ============================================
-tests/
-test_*
-*_test.py
+# Docker volumes
+docker/
