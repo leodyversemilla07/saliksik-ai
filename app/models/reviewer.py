@@ -3,13 +3,8 @@ Reviewer models for reviewer matching feature.
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey, JSON, LargeBinary, Index
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
 from app.core.database import Base
-
-
-def utc_now():
-    """Return current UTC time."""
-    return datetime.now(timezone.utc)
+from app.core.utils import utc_now
 
 
 class Reviewer(Base):
