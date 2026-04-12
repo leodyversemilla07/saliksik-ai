@@ -26,24 +26,44 @@ except Exception as e:
 
 class InMemoryRateLimiter:
     """Simple in-memory rate limiter using sliding window."""
-    
+
+    _MAX_KEYS = 50_000  # Cap to prevent unbounded growth
+
     def __init__(self):
         self._requests: dict = defaultdict(list)
-    
+        self._cleanup_counter = 0
+
     def reset(self):
         """Clear all rate limit counters (useful for testing)."""
         self._requests.clear()
 
+    def _periodic_cleanup(self):
+        """Remove empty keys every 100 requests to prevent memory leak."""
+        self._cleanup_counter += 1
+        if self._cleanup_counter >= 100:
+            self._cleanup_counter = 0
+            empty_keys = [k for k, v in self._requests.items() if not v]
+            for k in empty_keys:
+                del self._requests[k]
+            # If still too many keys, evict oldest
+            if len(self._requests) > self._MAX_KEYS:
+                sorted_keys = sorted(self._requests.keys(),
+                                     key=lambda k: self._requests[k][0] if self._requests[k] else 0)
+                for k in sorted_keys[:len(sorted_keys) // 4]:
+                    del self._requests[k]
+
     def is_allowed(self, key: str, max_requests: int, window_seconds: int) -> Tuple[bool, int]:
         """
         Check if request is allowed under rate limit.
-        
+
         Returns:
             Tuple of (is_allowed, remaining_requests)
         """
+        self._periodic_cleanup()
+
         now = time.time()
         window_start = now - window_seconds
-        
+
         # Clean old requests
         self._requests[key] = [
             req_time for req_time in self._requests[key]

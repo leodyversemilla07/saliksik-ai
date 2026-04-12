@@ -37,6 +37,7 @@ except ImportError:
 
 # Fallback in-memory cache with expiration tracking
 _memory_cache: Dict[str, Dict[str, Any]] = {}  # {key: {"value": ..., "expires_at": ...}}
+_MEMORY_CACHE_MAX_SIZE = 10_000  # Cap to prevent unbounded growth
 
 
 class AIResultCache:
@@ -91,6 +92,15 @@ class AIResultCache:
                 redis_client.setex(cache_key, ttl, json.dumps(result))
                 logger.info(f"Cached to Redis: {cache_key[:20]}... (TTL: {ttl}s)")
             else:
+                # Auto-cleanup if cache is growing too large
+                if len(_memory_cache) >= _MEMORY_CACHE_MAX_SIZE:
+                    cleanup_expired_cache()
+                    # If still too large after cleanup, evict oldest entries
+                    if len(_memory_cache) >= _MEMORY_CACHE_MAX_SIZE:
+                        sorted_keys = sorted(_memory_cache.keys(),
+                                             key=lambda k: _memory_cache[k].get("expires_at", 0))
+                        for k in sorted_keys[:len(sorted_keys) // 4]:  # Evict 25%
+                            del _memory_cache[k]
                 _memory_cache[cache_key] = {
                     "value": result,
                     "expires_at": time.time() + ttl
