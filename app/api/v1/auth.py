@@ -55,7 +55,10 @@ async def _save_verification_token(db: AsyncSession, user: User, token: str) -> 
 
 def _send_verification_email_background(email: str, username: str, token: str) -> None:
     """Schedule email sending in a background thread (fire-and-forget)."""
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
     loop.run_in_executor(None, send_verification_email_async_safe, email, username, token)
 
 

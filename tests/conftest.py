@@ -3,6 +3,11 @@ import os
 import sys
 from unittest.mock import MagicMock, patch
 
+# Set required env vars BEFORE any app imports
+os.environ.setdefault("SECRET_KEY", "test-secret-key-minimum-32-characters-long-for-testing")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_suite.db")
+os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///./test_suite.db")
+
 # MOCKING HEAVY DEPENDENCIES BEFORE IMPORTS
 mocks = [
     "spacy",

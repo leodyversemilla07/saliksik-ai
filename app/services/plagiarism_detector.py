@@ -3,8 +3,8 @@ Plagiarism detection service using MinHash LSH algorithm.
 Provides similarity checking for manuscripts against stored documents.
 """
 import hashlib
+import json
 import logging
-import pickle
 from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 import re
@@ -21,7 +21,6 @@ try:
 except ImportError:
     XXHASH_AVAILABLE = False
 
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -144,12 +143,17 @@ class PlagiarismDetector:
             else:
                 minhash.update(shingle.encode('utf-8'))
         
-        return pickle.dumps(minhash)
-    
+        # Serialize MinHash hash values as JSON (safe, no arbitrary code execution)
+        return json.dumps(minhash.hashvalues.tolist()).encode('utf-8')
+
     def _deserialize_fingerprint(self, fingerprint_bytes: bytes) -> Optional['MinHash']:
-        """Deserialize a MinHash fingerprint from bytes."""
+        """Deserialize a MinHash fingerprint from JSON-encoded hash values."""
         try:
-            return pickle.loads(fingerprint_bytes)
+            import numpy as np
+            hash_values = np.array(json.loads(fingerprint_bytes.decode('utf-8')), dtype=np.uint64)
+            mh = MinHash(num_perm=len(hash_values))
+            mh.hashvalues = hash_values
+            return mh
         except Exception as e:
             logger.error(f"Failed to deserialize fingerprint: {e}")
             return None
@@ -317,98 +321,6 @@ class PlagiarismDetector:
             checked_against=checked_count
         )
     
-    def check_similarity_with_database(
-        self,
-        text: str,
-        db: Session,
-        exclude_id: Optional[int] = None
-    ) -> PlagiarismResult:
-        """
-        Check similarity against documents stored in database (sync version).
-        
-        Args:
-            text: Manuscript text to check
-            db: Database session
-            exclude_id: Analysis ID to exclude (e.g., the current document)
-            
-        Returns:
-            PlagiarismResult with findings
-        """
-        import time
-        from app.models.document_fingerprint import DocumentFingerprint
-        
-        start_time = time.time()
-        similar_documents: List[SimilarDocument] = []
-        
-        if not DATASKETCH_AVAILABLE:
-            return PlagiarismResult(
-                is_plagiarized=False,
-                overall_similarity=0.0,
-                similar_documents=[],
-                unique_content_percentage=100.0,
-                processing_time=time.time() - start_time,
-                checked_against=0
-            )
-        
-        # Create MinHash for input
-        preprocessed = self._preprocess_text(text)
-        input_shingles = self._create_shingles(preprocessed)
-        
-        input_minhash = MinHash(num_perm=self.num_perm)
-        for shingle in input_shingles:
-            if XXHASH_AVAILABLE:
-                input_minhash.update(xxhash.xxh64(shingle.encode('utf-8')).digest())
-            else:
-                input_minhash.update(shingle.encode('utf-8'))
-        
-        # Query all fingerprints from database
-        query = db.query(DocumentFingerprint)
-        if exclude_id:
-            query = query.filter(DocumentFingerprint.analysis_id != exclude_id)
-        
-        fingerprints = query.all()
-        max_similarity = 0.0
-        
-        for fp in fingerprints:
-            stored_minhash = self._deserialize_fingerprint(fp.fingerprint_hash)
-            if stored_minhash is None:
-                continue
-            
-            similarity = self.calculate_similarity(input_minhash, stored_minhash)
-            
-            if similarity > self.threshold:
-                # Get shingles for segment matching
-                stored_shingles = set(fp.shingles) if fp.shingles else set()
-                matched_segments = self.find_matching_segments(
-                    input_shingles,
-                    stored_shingles
-                )
-                
-                # Get filename from related analysis
-                filename = None
-                if fp.analysis and fp.analysis.original_filename:
-                    filename = fp.analysis.original_filename
-                
-                similar_documents.append(SimilarDocument(
-                    analysis_id=fp.analysis_id,
-                    similarity_score=round(similarity, 4),
-                    matched_segments=matched_segments,
-                    original_filename=filename
-                ))
-                
-                max_similarity = max(max_similarity, similarity)
-        
-        similar_documents.sort(key=lambda x: x.similarity_score, reverse=True)
-        
-        return PlagiarismResult(
-            is_plagiarized=max_similarity >= self.threshold,
-            overall_similarity=round(max_similarity, 4),
-            similar_documents=similar_documents[:10],
-            unique_content_percentage=round((1 - max_similarity) * 100, 2),
-            processing_time=round(time.time() - start_time, 3),
-            checked_against=len(fingerprints)
-        )
-
     async def check_similarity_with_database_async(
         self,
         text: str,

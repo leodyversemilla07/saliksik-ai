@@ -14,11 +14,12 @@ class Settings(BaseSettings):
     # Project
     PROJECT_NAME: str = "Saliksik AI"
     VERSION: str = "2.1.0"  # All enhancements implemented
-    DEBUG: bool = True
-    
+    DEBUG: bool = False
+
     # Database
     # Async URL for FastAPI endpoints (postgresql+asyncpg://...)
-    DATABASE_URL: str = "postgresql+asyncpg://saliksik:saliksik123@localhost:5432/saliksik_ai_dev"
+    # NEVER hardcode credentials — set via DATABASE_URL env var
+    DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/saliksik_ai_dev"
     
     # Sync URL for Celery/Alebmic (postgresql://...)
     # We can default this to the sync version of the same DB
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
         return self.DATABASE_URL.replace("+asyncpg", "").replace("+aiosqlite", "")
 
     # Security
-    SECRET_KEY: str = "django-insecure-change-me-in-production"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour (use env var to override)
 
@@ -44,27 +45,11 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
-        insecure_defaults = {
-            "django-insecure-change-me-in-production",
-            "change-me",
-            "secret",
-            "",
-        }
-        if v in insecure_defaults:
-            import warnings
-            warnings.warn(
-                "SECRET_KEY is using an insecure default. "
-                "Set a strong random SECRET_KEY via environment variable "
-                "(min 32 characters). "
-                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\"",
-                stacklevel=2,
-            )
-        elif len(v) < 32:
-            import warnings
-            warnings.warn(
-                f"SECRET_KEY is only {len(v)} characters. "
-                "Use at least 32 characters for adequate security.",
-                stacklevel=2,
+        if not v or len(v) < 32:
+            raise ValueError(
+                "SECRET_KEY is required and must be at least 32 characters. "
+                "Set it via the SECRET_KEY environment variable. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
         return v
     
