@@ -1,6 +1,7 @@
 """
 Information and health check endpoints.
 """
+
 from fastapi import APIRouter
 from app.core.config import settings
 

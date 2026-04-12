@@ -6,9 +6,9 @@ from app.core.utils import utc_now
 
 class User(Base):
     """User model for authentication."""
-    
+
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
@@ -21,12 +21,9 @@ class User(Base):
     verification_token_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utc_now)
     last_login = Column(DateTime, nullable=True)
-    
+
     # Relationships
     analyses = relationship("ManuscriptAnalysis", back_populates="user")
     reviewer_profile = relationship(
-        "Reviewer", 
-        back_populates="user", 
-        uselist=False,
-        cascade="all, delete-orphan"
+        "Reviewer", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )

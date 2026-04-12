@@ -4,6 +4,7 @@ Email sending service for Saliksik AI.
 Uses SMTP when configured (SMTP_HOST is set), otherwise logs the email
 content to the application logger (useful in development / testing).
 """
+
 import smtplib
 import logging
 from email.mime.text import MIMEText
@@ -65,15 +66,15 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
 
     Returns True on success, False on failure.
     """
-    verification_url = (
-        f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
-    )
+    verification_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
 
     if not settings.SMTP_HOST:
         logger.info(
             "EMAIL VERIFICATION (dev mode — SMTP not configured): "
             "username=%s email=%s url=%s",
-            username, to_email, verification_url,
+            username,
+            to_email,
+            verification_url,
         )
         return True
 
@@ -95,7 +96,9 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
         return False
 
 
-def send_verification_email_async_safe(to_email: str, username: str, token: str) -> None:
+def send_verification_email_async_safe(
+    to_email: str, username: str, token: str
+) -> None:
     """
     Fire-and-forget wrapper: call from an async context via run_in_executor,
     or directly from a Celery task.  Swallows all exceptions so a mail

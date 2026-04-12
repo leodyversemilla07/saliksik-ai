@@ -1,6 +1,7 @@
 """
 Shared utilities used across the application.
 """
+
 from datetime import datetime, timezone
 
 

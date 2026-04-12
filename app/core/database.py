@@ -1,6 +1,7 @@
 """
 Database configuration and session management with connection pooling.
 """
+
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -45,10 +46,7 @@ else:
     )
 
 AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False
+    bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
 )
 
 # 2. Sync Engine (for Celery Tasks & Migrations)
@@ -112,7 +110,9 @@ def get_pool_status() -> dict:
             "checked_out": pool.checkedout(),
             "overflow": pool.overflow(),
             "checked_in": pool.checkedin(),
-            "invalid": pool.invalidatedcount() if hasattr(pool, 'invalidatedcount') else 0,
+            "invalid": pool.invalidatedcount()
+            if hasattr(pool, "invalidatedcount")
+            else 0,
         }
     except Exception as e:
         logger.debug(f"Could not get pool status: {e}")

@@ -1,18 +1,22 @@
 import os
 import spacy
 from nltk.tokenize import sent_tokenize
+
 try:
     from transformers import pipeline, AutoTokenizer
+
     _TRANSFORMERS_AVAILABLE = True
 except Exception:
     _TRANSFORMERS_AVAILABLE = False
 try:
     import yake
+
     _YAKE_AVAILABLE = True
 except ImportError:
     _YAKE_AVAILABLE = False
 try:
     import textstat
+
     _TEXTSTAT_AVAILABLE = True
 except ImportError:
     _TEXTSTAT_AVAILABLE = False
@@ -29,7 +33,11 @@ MODEL_NAME = "sshleifer/distilbart-cnn-12-6"  # 306M params, ~600MB (was bart-la
 class ManuscriptPreReviewer:
     def __init__(self):
         # Light mode avoids heavy model loading (for tests/CI or constrained environments)
-        self.light_mode = os.getenv("AI_LIGHT_MODE", "0").lower() in ("1", "true", "yes")
+        self.light_mode = os.getenv("AI_LIGHT_MODE", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
         # Lazy-loaded components
         self._nlp = None
@@ -50,7 +58,9 @@ class ManuscriptPreReviewer:
             try:
                 self._nlp = spacy.load("en_core_web_sm")
             except OSError:
-                logger.warning("spaCy model 'en_core_web_sm' not found. Falling back to blank 'en' model.")
+                logger.warning(
+                    "spaCy model 'en_core_web_sm' not found. Falling back to blank 'en' model."
+                )
                 self._nlp = spacy.blank("en")
         return self._nlp
 
@@ -60,7 +70,9 @@ class ManuscriptPreReviewer:
             return None
         if self._tokenizer is None:
             if not _TRANSFORMERS_AVAILABLE:
-                raise RuntimeError("Transformers not available but required (disable via AI_LIGHT_MODE=1)")
+                raise RuntimeError(
+                    "Transformers not available but required (disable via AI_LIGHT_MODE=1)"
+                )
             try:
                 self._tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
             except Exception as e:
@@ -74,7 +86,9 @@ class ManuscriptPreReviewer:
             return None
         if self._summarizer is None:
             if not _TRANSFORMERS_AVAILABLE:
-                raise RuntimeError("Transformers not available but required (disable via AI_LIGHT_MODE=1)")
+                raise RuntimeError(
+                    "Transformers not available but required (disable via AI_LIGHT_MODE=1)"
+                )
             try:
                 self._summarizer = pipeline("summarization", model=MODEL_NAME)
             except Exception as e:
@@ -106,7 +120,9 @@ class ManuscriptPreReviewer:
 
         # Token-based chunking using BART tokenizer
         for sentence in sentences:
-            tokenized_sentence = self.tokenizer.encode(sentence, add_special_tokens=False)
+            tokenized_sentence = self.tokenizer.encode(
+                sentence, add_special_tokens=False
+            )
             sentence_length = len(tokenized_sentence)
 
             if current_length + sentence_length > max_tokens:
@@ -138,7 +154,9 @@ class ManuscriptPreReviewer:
             if len(chunk.split()) < 5:
                 summaries.append(chunk)
             else:
-                summary = self.summarizer(chunk, max_length=130, min_length=30, do_sample=False)
+                summary = self.summarizer(
+                    chunk, max_length=130, min_length=30, do_sample=False
+                )
                 summaries.append(summary[0]["summary_text"])
         return " ".join(summaries)
 
@@ -155,8 +173,13 @@ class ManuscriptPreReviewer:
             return [kw for kw, score in keywords[:top_n]]
         # Fallback: extract nouns via spaCy
         doc = self.nlp(text[:10000])
-        nouns = [token.text.lower() for token in doc if token.pos_ == "NOUN" and len(token.text) > 2]
+        nouns = [
+            token.text.lower()
+            for token in doc
+            if token.pos_ == "NOUN" and len(token.text) > 2
+        ]
         from collections import Counter
+
         return [w for w, _ in Counter(nouns).most_common(top_n)]
 
     def assess_language_quality(self, text):
@@ -177,9 +200,15 @@ class ManuscriptPreReviewer:
 
         # Use textstat for accurate readability scores
         if _TEXTSTAT_AVAILABLE and sentence_count > 0 and word_count > 10:
-            quality_metrics["readability_score"] = round(textstat.flesch_reading_ease(text), 2)
-            quality_metrics["flesch_kincaid_grade"] = round(textstat.flesch_kincaid_grade(text), 2)
-            quality_metrics["automated_readability"] = round(textstat.automated_readability_index(text), 2)
+            quality_metrics["readability_score"] = round(
+                textstat.flesch_reading_ease(text), 2
+            )
+            quality_metrics["flesch_kincaid_grade"] = round(
+                textstat.flesch_kincaid_grade(text), 2
+            )
+            quality_metrics["automated_readability"] = round(
+                textstat.automated_readability_index(text), 2
+            )
         elif sentence_count > 0 and word_count > 0:
             # Fallback: simplified Flesch Reading Ease
             syllable_count = len([token for token in doc if token.is_alpha])
