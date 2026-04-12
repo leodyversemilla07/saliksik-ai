@@ -1,0 +1,8 @@
+# Development dependencies
+-r requirements.txt
+
+# Dev tools
+ipython>=8.0.0
+ipdb>=0.13.0
+ruff>=0.8.0
+mypy>=1.13.0
