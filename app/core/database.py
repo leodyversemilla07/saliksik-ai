@@ -2,12 +2,14 @@
 Database configuration and session management with connection pooling.
 """
 
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.pool import QueuePool, NullPool
 import logging
+
+from sqlalchemy import create_engine, event
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

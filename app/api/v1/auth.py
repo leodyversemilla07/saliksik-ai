@@ -2,53 +2,52 @@
 Authentication endpoints.
 """
 
-import secrets
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Annotated
-from app.core.database import get_db
+
+from app.core.config import settings
+from app.core.deps import CurrentUser, DbSession
+from app.core.email import send_verification_email_async_safe
 from app.core.security import (
-    verify_password,
-    get_password_hash,
-    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    blacklist_token,
+    clear_failed_logins,
     create_token_pair,
     decode_refresh_token,
-    blacklist_token,
     generate_api_key,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_password_hash,
     is_account_locked,
     record_failed_login,
-    clear_failed_logins,
+    verify_password,
+)
+from app.core.security_utils import (
+    sanitize_string,
+    validate_email,
+    validate_password,
+    validate_username,
 )
 from app.models.user import User
 from app.schemas.user import (
-    UserRegister,
-    UserLogin,
-    TokenResponse,
-    UserResponse,
-    RefreshTokenRequest,
-    RefreshTokenResponse,
     ApiKeyResponse,
     ApiKeyRotateResponse,
     LogoutRequest,
     PasswordChangeRequest,
-    VerifyEmailResponse,
+    RefreshTokenRequest,
+    RefreshTokenResponse,
     ResendVerificationResponse,
+    TokenResponse,
+    UserRegister,
+    UserResponse,
+    VerifyEmailResponse,
 )
-from app.core.deps import get_current_user, DbSession, CurrentUser
-from app.core.config import settings
-from app.core.security_utils import (
-    validate_email,
-    validate_username,
-    validate_password,
-    sanitize_string,
-)
-from app.core.email import send_verification_email_async_safe
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -66,8 +65,8 @@ def _create_email_verification_token() -> str:
 
 async def _save_verification_token(db: AsyncSession, user: User, token: str) -> None:
     """Persist the verification token (with expiry) on the user row."""
-    user.verification_token = token
-    user.verification_token_expires_at = datetime.now(timezone.utc) + timedelta(
+    user.verification_token = token  # type: ignore[invalid-assignment]
+    user.verification_token_expires_at = datetime.now(timezone.utc) + timedelta(  # type: ignore[invalid-assignment]
         hours=settings.EMAIL_VERIFY_EXPIRE_HOURS
     )
     await db.commit()
@@ -91,12 +90,13 @@ async def get_or_create_api_key(current_user: CurrentUser, db: DbSession):
     Generate or get current API Key.
     """
     if not current_user.api_key:
-        current_user.api_key = generate_api_key()
+        current_user.api_key = generate_api_key()  # type: ignore[invalid-assignment]
         await db.commit()
         logger.info(f"API Key generated for user: {current_user.username}")
 
+    api_key: str = current_user.api_key or ""  # Should not be None after above check
     return ApiKeyResponse(
-        api_key=current_user.api_key, created_at=current_user.created_at
+        api_key=api_key, created_at=current_user.created_at  # type: ignore[arg-type]
     )
 
 
@@ -107,13 +107,13 @@ async def rotate_api_key(current_user: CurrentUser, db: DbSession):
     The previous key is immediately invalidated.
     """
     old_key_existed = current_user.api_key is not None
-    current_user.api_key = generate_api_key()
+    current_user.api_key = generate_api_key()  # type: ignore[invalid-assignment]
     await db.commit()
 
     logger.info(f"API Key rotated for user: {current_user.username}")
 
     return ApiKeyRotateResponse(
-        api_key=current_user.api_key, previous_key_revoked=old_key_existed
+        api_key=current_user.api_key or "", previous_key_revoked=old_key_existed  # type: ignore[arg-type]
     )
 
 
@@ -272,7 +272,7 @@ async def login(
     clear_failed_logins(form_data.username)
 
     # Update last login
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.now(timezone.utc)  # type: ignore[invalid-assignment]
     await db.commit()
 
     # Create access and refresh tokens
@@ -342,7 +342,7 @@ async def refresh_access_token(request: RefreshTokenRequest, db: DbSession):
 @router.post("/logout")
 async def logout(
     current_user: CurrentUser,
-    request: LogoutRequest = None,
+    request: Optional[LogoutRequest] = None,
     authorization: Optional[str] = Header(None),
 ):
     """

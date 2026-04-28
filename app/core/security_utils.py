@@ -2,10 +2,11 @@
 Input validation and security utilities.
 """
 
-import re
 import html
-from typing import Optional, List, Tuple
-from fastapi import Request, HTTPException, status
+import re
+from typing import List, Optional, Tuple
+
+from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 

@@ -3,11 +3,11 @@ Language detection service for multi-language manuscript support.
 """
 
 import logging
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 try:
-    from langdetect import detect, detect_langs, DetectorFactory
+    from langdetect import DetectorFactory, detect, detect_langs
 
     # Make detection deterministic
     DetectorFactory.seed = 0

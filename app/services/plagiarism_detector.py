@@ -3,12 +3,11 @@ Plagiarism detection service using MinHash LSH algorithm.
 Provides similarity checking for manuscripts against stored documents.
 """
 
-import hashlib
 import json
 import logging
-from typing import List, Optional, Dict, Any, Tuple
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 try:
     from datasketch import MinHash, MinHashLSH
@@ -24,8 +23,8 @@ try:
 except ImportError:
     XXHASH_AVAILABLE = False
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -341,6 +340,7 @@ class PlagiarismDetector:
             PlagiarismResult with findings
         """
         import time
+
         from app.models.document_fingerprint import DocumentFingerprint
 
         start_time = time.time()

@@ -2,9 +2,10 @@
 Alembic database migration script.
 """
 
-from alembic import command
+
 from alembic.config import Config
-import os
+
+from alembic import command
 
 
 def create_migration(message: str):

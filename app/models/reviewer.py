@@ -3,18 +3,20 @@ Reviewer models for reviewer matching feature.
 """
 
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
+    JSON,
     Boolean,
+    Column,
     DateTime,
     Float,
     ForeignKey,
-    JSON,
-    LargeBinary,
     Index,
+    Integer,
+    LargeBinary,
+    String,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
+from typing import Optional
+
 from app.core.database import Base
 from app.core.utils import utc_now
 
@@ -60,8 +62,8 @@ class Reviewer(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
-    user = relationship("User", back_populates="reviewer_profile")
-    matches = relationship(
+    user: Mapped["User"] = relationship("User", back_populates="reviewer_profile")
+    matches: Mapped[list["ReviewerMatch"]] = relationship(
         "ReviewerMatch", back_populates="reviewer", cascade="all, delete-orphan"
     )
 
@@ -78,12 +80,14 @@ class Reviewer(Base):
     @property
     def available_slots(self) -> int:
         """Number of available review slots."""
-        return max(0, self.max_assignments - self.current_assignments)
+        max_a = self.max_assignments if self.max_assignments is not None else 0
+        curr = self.current_assignments if self.current_assignments is not None else 0
+        return max(0, max_a - curr)
 
     @property
     def is_accepting_reviews(self) -> bool:
         """Whether reviewer is accepting new assignments."""
-        return self.is_available and self.available_slots > 0
+        return bool(self.is_available and self.available_slots > 0)
 
 
 class ReviewerMatch(Base):
@@ -124,8 +128,8 @@ class ReviewerMatch(Base):
     responded_at = Column(DateTime, nullable=True)
 
     # Relationships
-    reviewer = relationship("Reviewer", back_populates="matches")
-    analysis = relationship("ManuscriptAnalysis", back_populates="reviewer_matches")
+    reviewer: Mapped["Reviewer"] = relationship("Reviewer", back_populates="matches")
+    analysis: Mapped["ManuscriptAnalysis"] = relationship("ManuscriptAnalysis", back_populates="reviewer_matches")
 
     # Composite indexes for common query patterns
     __table_args__ = (

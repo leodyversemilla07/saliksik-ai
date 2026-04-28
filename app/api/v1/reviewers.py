@@ -2,34 +2,32 @@
 Reviewer management and matching API endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
-from typing import List, Optional, Annotated
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
+from typing import List, Optional
 
-from app.core.database import get_db
-from app.core.deps import get_authenticated_user, DbSession, AuthenticatedUser
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
+
 from app.core.config import settings
-from app.models.user import User
-from app.models.reviewer import Reviewer, ReviewerMatch
+from app.core.deps import AuthenticatedUser, DbSession
+from app.core.security_utils import sanitize_keywords, sanitize_string
 from app.models.analysis import ManuscriptAnalysis
+from app.models.reviewer import Reviewer, ReviewerMatch
 from app.schemas.reviewer import (
+    ReviewerAssignRequest,
     ReviewerCreate,
-    ReviewerUpdate,
+    ReviewerListResponse,
+    ReviewerMatchResponse,
+    ReviewerMatchStatus,
     ReviewerPublicResponse,
     ReviewerResponse,
     ReviewerSuggestion,
-    ReviewerMatchResponse,
-    ReviewerAssignRequest,
-    ReviewerMatchStatus,
-    ReviewerListResponse,
     ReviewerSuggestionsResponse,
+    ReviewerUpdate,
 )
 from app.services.reviewer_matcher import get_reviewer_matcher
-from app.core.security_utils import sanitize_keywords, sanitize_string
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

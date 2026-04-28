@@ -3,11 +3,11 @@ Centralized exception handling for the application.
 """
 
 import logging
-from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
+
+from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class AppException(Exception):
 class NotFoundError(AppException):
     """Resource not found exception."""
 
-    def __init__(self, resource: str, identifier: str = None):
+    def __init__(self, resource: str, identifier: str | None = None):
         message = f"{resource} not found"
         if identifier:
             message = f"{resource} with id '{identifier}' not found"

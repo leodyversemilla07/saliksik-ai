@@ -2,19 +2,21 @@
 Rate limiting middleware using Redis backend (shared with cache) or in-memory fallback.
 """
 
-import time
 import logging
-from typing import Optional, Tuple
+import time
 from collections import defaultdict
-from fastapi import Request, HTTPException, status
+from typing import Tuple
+
+from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Reuse the Redis client already established by cache.py to avoid duplicate connections
 try:
-    from app.core.cache import redis_client, REDIS_AVAILABLE
+    from app.core.cache import REDIS_AVAILABLE, redis_client
 
     if REDIS_AVAILABLE and redis_client:
         logger.info("Rate limiter using shared Redis connection")

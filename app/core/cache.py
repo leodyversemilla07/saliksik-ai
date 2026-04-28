@@ -2,13 +2,13 @@
 Cache utilities using Redis or in-memory fallback.
 """
 
+import functools
 import hashlib
+import json
 import logging
 import time
-import functools
-from typing import Optional, Dict, Any, Callable, TypeVar
-from datetime import datetime, timezone
-import json
+from typing import Any, Callable, Dict, Optional, TypeVar
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -154,8 +154,8 @@ class AIResultCache:
                         "keyspace_misses": info.get("keyspace_misses", 0),
                     }
                 )
-                hits = stats.get("keyspace_hits", 0)
-                misses = stats.get("keyspace_misses", 0)
+                hits = int(stats.get("keyspace_hits") or 0)
+                misses = int(stats.get("keyspace_misses") or 0)
                 total = hits + misses
                 if total > 0:
                     stats["hit_rate"] = round((hits / total) * 100, 2)

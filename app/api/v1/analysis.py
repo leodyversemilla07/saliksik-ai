@@ -2,34 +2,31 @@
 Analysis endpoints for manuscript processing.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Optional, Annotated
 import asyncio
-import time
 import logging
-from app.core.database import get_db
-from app.core.deps import (
-    get_authenticated_user,
-    DbSession,
-    AuthenticatedUser,
-    AdminUser,
-)
+import time
+from typing import Optional
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import func, select
+
 from app.core.cache import AIResultCache
-from app.models.user import User
-from app.models.analysis import ManuscriptAnalysis, ProcessingError
+from app.core.deps import (
+    AdminUser,
+    AuthenticatedUser,
+    DbSession,
+)
+from app.core.security_utils import sanitize_filename, sanitize_manuscript_text
+from app.models.analysis import ManuscriptAnalysis
 from app.schemas.analysis import (
-    AnalysisRequest,
-    DemoAnalysisRequest,
-    AnalysisResponse,
-    AnalysisHistoryResponse,
     AnalysisHistoryItem,
-    LanguageQuality,
+    AnalysisHistoryResponse,
     AnalysisMetadata,
+    AnalysisResponse,
+    DemoAnalysisRequest,
+    LanguageQuality,
 )
 from app.services.ai_processor import ManuscriptPreReviewer
-from app.core.security_utils import sanitize_manuscript_text, sanitize_filename
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -60,7 +57,8 @@ async def pre_review(
 
         # Handle PDF upload
         if manuscript_file:
-            if not manuscript_file.filename.lower().endswith(".pdf"):
+            filename = manuscript_file.filename or ""
+            if not filename.lower().endswith(".pdf"):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid file type. Only PDF files are supported",
@@ -81,6 +79,11 @@ async def pre_review(
                 )
 
         # Sanitize manuscript text
+        if not manuscript_text:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Manuscript text is required",
+            )
         manuscript_text = sanitize_manuscript_text(manuscript_text)
 
         # Validate text length
@@ -105,9 +108,7 @@ async def pre_review(
         # Create initial record
         analysis = ManuscriptAnalysis(
             user_id=current_user.id,
-            original_filename=sanitize_filename(manuscript_file.filename)
-            if manuscript_file
-            else None,
+            original_filename=sanitize_filename(manuscript_file.filename) if manuscript_file and manuscript_file.filename else None,
             input_type="pdf" if manuscript_file else "text",
             manuscript_text=manuscript_text[:10000],
             status="PENDING",
@@ -160,9 +161,17 @@ async def get_analysis_status(
         )
 
     if analysis.status == "COMPLETED":
+        # Type narrowing: when status is COMPLETED, these fields must be set
+        assert analysis.summary is not None, "Summary should be set when completed"
+        assert analysis.keywords is not None, "Keywords should be set when completed"
+        assert analysis.language_quality is not None, "Language quality should be set when completed"
+
+        keywords: list[str] = analysis.keywords if isinstance(analysis.keywords, list) else []
+        created_at: datetime | None = analysis.created_at  # type: ignore[assignment]
+
         return AnalysisResponse(
             summary=analysis.summary,
-            keywords=analysis.keywords,
+            keywords=keywords,
             language_quality=LanguageQuality(**analysis.language_quality),
             metadata=AnalysisMetadata(
                 analysis_id=analysis.id,
@@ -171,7 +180,7 @@ async def get_analysis_status(
                 if analysis.processing_time
                 else 0,
                 user=current_user.username,
-                timestamp=analysis.created_at,
+                timestamp=created_at,
                 cached=False,
             ),
         )

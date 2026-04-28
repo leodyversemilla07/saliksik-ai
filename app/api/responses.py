@@ -2,9 +2,9 @@
 Standardized API response models and examples for OpenAPI documentation.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
-from datetime import datetime
 
 
 # Common error response model

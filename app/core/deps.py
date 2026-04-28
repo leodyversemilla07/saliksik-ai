@@ -2,11 +2,13 @@
 Authentication dependencies and utilities.
 """
 
+from typing import Annotated, Optional
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from sqlalchemy import select
-from typing import Optional, Annotated
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User

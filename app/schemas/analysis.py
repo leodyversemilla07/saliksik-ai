@@ -2,11 +2,13 @@
 Analysis schemas for manuscript processing.
 """
 
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional
 from datetime import datetime
-from app.schemas.plagiarism import PlagiarismResult
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.schemas.citation import CitationAnalysisResult
+from app.schemas.plagiarism import PlagiarismResult
 
 
 class AnalysisRequest(BaseModel):

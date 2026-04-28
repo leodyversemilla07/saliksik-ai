@@ -3,11 +3,11 @@ Citation analysis service for parsing and validating references.
 Supports APA, MLA, IEEE, and Chicago citation formats.
 """
 
-import re
 import logging
-from typing import List, Optional, Dict, Any, Tuple
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -320,9 +320,9 @@ class CitationAnalyzer:
                     pass
                 else:
                     # Other formats have author and year
-                    if match.lastindex >= 1:
+                    if match.lastindex is not None and match.lastindex >= 1:
                         citation.authors = [match.group(1)]
-                    if match.lastindex >= 2:
+                    if match.lastindex is not None and match.lastindex >= 2:
                         try:
                             citation.year = int(match.group(2))
                         except ValueError:

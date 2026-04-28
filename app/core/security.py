@@ -1,9 +1,11 @@
-import bcrypt
-import secrets
 import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
+
+import bcrypt
 from jose import JWTError, jwt
+
 from app.core.config import settings
 
 # Token types
@@ -30,7 +32,7 @@ _locked_until: dict = {}
 def _get_redis():
     """Lazily import Redis client to avoid circular imports at module load."""
     try:
-        from app.core.cache import redis_client, REDIS_AVAILABLE
+        from app.core.cache import REDIS_AVAILABLE, redis_client
 
         return redis_client, REDIS_AVAILABLE
     except Exception:

@@ -5,11 +5,10 @@ Uses SMTP when configured (SMTP_HOST is set), otherwise logs the email
 content to the application logger (useful in development / testing).
 """
 
-import smtplib
 import logging
-from email.mime.text import MIMEText
+import smtplib
 from email.mime.multipart import MIMEMultipart
-from typing import Optional
+from email.mime.text import MIMEText
 
 from app.core.config import settings
 

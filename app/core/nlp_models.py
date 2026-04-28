@@ -4,7 +4,7 @@ Handles lazy loading of spaCy models for different languages.
 """
 
 import logging
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 try:
     import spacy

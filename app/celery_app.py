@@ -4,6 +4,7 @@ Celery configuration and tasks for FastAPI.
 
 from celery import Celery
 from kombu import Queue
+
 from app.core.config import settings
 
 celery_app = Celery(

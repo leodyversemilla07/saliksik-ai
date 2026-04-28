@@ -2,25 +2,21 @@
 Plagiarism detection API endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Annotated
 import logging
 
-from app.core.database import get_db
-from app.core.deps import (
-    get_authenticated_user,
-    DbSession,
-    AuthenticatedUser,
-    AdminUser,
-)
+from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import select
+
 from app.core.config import settings
-from app.models.user import User
+from app.core.deps import (
+    AdminUser,
+    AuthenticatedUser,
+    DbSession,
+)
 from app.schemas.plagiarism import (
-    PlagiarismResult,
     PlagiarismCheckRequest,
     PlagiarismIndexStats,
+    PlagiarismResult,
 )
 from app.services.plagiarism_detector import get_plagiarism_detector
 

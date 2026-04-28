@@ -3,7 +3,8 @@ API v1 router aggregation.
 """
 
 from fastapi import APIRouter
-from app.api.v1 import auth, analysis, info, plagiarism, reviewers
+
+from app.api.v1 import analysis, auth, info, plagiarism, reviewers
 
 api_router = APIRouter()
 

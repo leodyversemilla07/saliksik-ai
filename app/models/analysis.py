@@ -1,19 +1,17 @@
-"""
-Manuscript analysis model.
-"""
-
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
+    JSON,
     DateTime,
     Float,
     ForeignKey,
-    JSON,
     Index,
+    Integer,
+    String,
+    Text,
 )
-from sqlalchemy.orm import relationship
+from typing import Optional
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.database import Base
 from app.core.utils import utc_now
 
@@ -23,42 +21,42 @@ class ManuscriptAnalysis(Base):
 
     __tablename__ = "manuscript_analyses"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     # Input information
-    original_filename = Column(String(255), nullable=True)
-    input_type = Column(String(10), default="text")  # 'text' or 'pdf'
-    manuscript_text = Column(Text, nullable=False)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    input_type: Mapped[str] = mapped_column(String(10), default="text")  # 'text' or 'pdf'
+    manuscript_text: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Analysis results
-    summary = Column(Text, nullable=True)  # Nullable until processed
-    keywords = Column(JSON, default=list)
-    language_quality = Column(JSON, default=dict)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)  # Nullable until processed
+    keywords: Mapped[dict] = mapped_column(JSON, default=list)
+    language_quality: Mapped[dict] = mapped_column(JSON, default=dict)
 
     # Enhancement features results
-    detected_language = Column(String(10), nullable=True)  # ISO 639-1 code
-    citation_analysis = Column(JSON, nullable=True)  # Citation analysis results
+    detected_language: Mapped[str | None] = mapped_column(String(10), nullable=True)  # ISO 639-1 code
+    citation_analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # Citation analysis results
 
     # Async Task Info
-    status = Column(
+    status: Mapped[str] = mapped_column(
         String(20), default="PENDING", index=True
     )  # PENDING, PROCESSING, COMPLETED, FAILED
-    task_id = Column(String(50), unique=True, nullable=True, index=True)
+    task_id: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True, index=True)
 
     # Metadata
-    created_at = Column(DateTime, default=utc_now, index=True)
-    processing_time = Column(Float, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, default=utc_now, index=True)
+    processing_time: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationships
-    user = relationship("User", back_populates="analyses")
-    fingerprint = relationship(
+    user: Mapped["User"] = relationship("User", back_populates="analyses")
+    fingerprint: Mapped[Optional["DocumentFingerprint"]] = relationship(
         "DocumentFingerprint",
         back_populates="analysis",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    reviewer_matches = relationship(
+    reviewer_matches: Mapped[list["ReviewerMatch"]] = relationship(
         "ReviewerMatch", back_populates="analysis", cascade="all, delete-orphan"
     )
 
@@ -74,12 +72,12 @@ class ProcessingError(Base):
 
     __tablename__ = "processing_errors"
 
-    id = Column(Integer, primary_key=True, index=True)
-    error_type = Column(String(100), nullable=False, index=True)
-    error_message = Column(Text, nullable=False)
-    input_type = Column(String(10), default="text")
-    input_size = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=utc_now, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    error_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    error_message: Mapped[str] = mapped_column(Text, nullable=False)
+    input_type: Mapped[str] = mapped_column(String(10), default="text")
+    input_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, default=utc_now, index=True)
 
     # Composite index for error analysis
     __table_args__ = (

@@ -2,8 +2,9 @@
 Pydantic schemas for plagiarism detection.
 """
 
-from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SimilarDocument(BaseModel):

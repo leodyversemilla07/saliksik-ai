@@ -6,14 +6,15 @@ import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional
-from celery import states
-from celery.exceptions import SoftTimeLimitExceeded, MaxRetriesExceededError
+
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from sqlalchemy.orm import Session
+
 from app.celery_app import celery_app
+from app.core.cache import AIResultCache
 from app.core.database import SessionLocal
 from app.models.analysis import ManuscriptAnalysis, ProcessingError
 from app.services.ai_processor import ManuscriptPreReviewer
-from app.core.cache import AIResultCache
 
 logger = logging.getLogger(__name__)
 

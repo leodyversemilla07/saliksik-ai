@@ -91,29 +91,30 @@ docker-compose up -d --build
 # - Health:      http://localhost:8000/health
 ```
 
-### Manual Setup
+### Manual Setup (using uv)
+
+> **Prerequisite:** Install uv from https://docs.astral.sh/uv/getting-started/installation/
 
 ```bash
 git clone https://github.com/leodyversemilla07/saliksik-ai.git
 cd saliksik-ai
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+# Create virtual environment with uv
+uv venv
 
-# Install dependencies
-pip install -r requirements.txt
+# Install all dependencies (main + test + dev) in editable mode
+uv pip install -e ".[test,dev]"
 
 # Download NLP models
-python -m spacy download en_core_web_sm
-python -c "import nltk; nltk.download('punkt')"
+uv run python -m spacy download en_core_web_sm
+uv run python -c "import nltk; nltk.download('punkt')"
 
 # Configure
-cp .env.example .env
+cp .env.example .env  # Windows: copy .env.example .env
 # Edit .env with your database credentials and SECRET_KEY
 
-# Start server
-uvicorn main:app --reload
+# Start server (editable install makes `app` importable automatically)
+uv run uvicorn main:app --reload
 ```
 
 ---
@@ -181,8 +182,7 @@ saliksik-ai/
 ├── tests/                # Test suite (80+ tests)
 ├── .github/workflows/    # CI pipeline
 ├── main.py               # FastAPI entry point
-├── requirements.txt      # Production dependencies
-├── requirements-test.txt # CI dependencies (no torch)
+├── pyproject.toml        # Project metadata and dependencies
 ├── docker-compose.yml    # Full stack orchestration
 └── pytest.ini            # Test configuration
 ```
@@ -206,29 +206,30 @@ Client ← API Response (poll status endpoint)
 ### Running Tests
 
 ```bash
-# Install test dependencies
-pip install -r requirements-test.txt
-
-# Run all tests with coverage
-pytest
+# Run all tests with coverage (editable install makes app importable)
+uv run pytest
 
 # Run specific test file
-pytest tests/test_cache.py
+uv run pytest tests/test_cache.py
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 ```
 
-### Linting
+### Linting & Type Checking
 
 ```bash
-pip install ruff
+# Lint and auto-fix issues
+uv run ruff check --fix app/
 
-# Check for issues
-ruff check app/
+# Format code
+uv run ruff format app/
 
-# Auto-format
-ruff format app/
+# Type check with ty (fast, written in Rust)
+uv run ty check app/
+
+# Or run all checks together
+uv run ruff check app/ && uv run ty check app/
 ```
 
 ### CI Pipeline

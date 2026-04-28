@@ -5,8 +5,9 @@ Matches manuscripts with reviewers based on expertise.
 
 import json
 import logging
-from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
+
 import numpy as np
 
 try:
@@ -16,8 +17,8 @@ try:
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +228,7 @@ class ReviewerMatcher:
         suggestions = []
 
         # Query available reviewers (async)
-        stmt = select(Reviewer).filter(Reviewer.is_available == True)
+        stmt = select(Reviewer).filter(Reviewer.is_available)
 
         if exclude_user_ids:
             stmt = stmt.filter(Reviewer.user_id.notin_(exclude_user_ids))

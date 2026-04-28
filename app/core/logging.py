@@ -2,15 +2,15 @@
 Structured logging configuration with JSON format and request tracking.
 """
 
-import logging
 import json
+import logging
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from functools import wraps
+from typing import Optional
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint

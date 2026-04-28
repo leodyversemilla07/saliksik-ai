@@ -3,9 +3,11 @@ Document fingerprint model for plagiarism detection.
 Stores MinHash fingerprints for efficient similarity comparison.
 """
 
-from sqlalchemy import Column, Integer, LargeBinary, JSON, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
+
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, LargeBinary
+from sqlalchemy.orm import Mapped, relationship
+
 from app.core.database import Base
 
 
@@ -44,7 +46,7 @@ class DocumentFingerprint(Base):
     created_at = Column(DateTime, default=utc_now, index=True)
 
     # Relationship to the analysis
-    analysis = relationship(
+    analysis: Mapped["ManuscriptAnalysis"] = relationship(
         "ManuscriptAnalysis", back_populates="fingerprint", uselist=False
     )
 

@@ -2,11 +2,11 @@
 Application configuration using Pydantic Settings.
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
-from typing import List, Optional
-import os
 import json
+from typing import List, Optional
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):

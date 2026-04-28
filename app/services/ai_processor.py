@@ -1,9 +1,10 @@
 import os
+
 import spacy
 from nltk.tokenize import sent_tokenize
 
 try:
-    from transformers import pipeline, AutoTokenizer
+    from transformers import AutoTokenizer, pipeline
 
     _TRANSFORMERS_AVAILABLE = True
 except Exception:
@@ -20,9 +21,9 @@ try:
     _TEXTSTAT_AVAILABLE = True
 except ImportError:
     _TEXTSTAT_AVAILABLE = False
-import io
-from pypdf import PdfReader
 import logging
+
+from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
