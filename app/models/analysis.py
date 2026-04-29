@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import (
     JSON,
     DateTime,
@@ -8,8 +10,6 @@ from sqlalchemy import (
     String,
     Text,
 )
-from typing import Optional
-
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base

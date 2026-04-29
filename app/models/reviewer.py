@@ -139,4 +139,9 @@ class ReviewerMatch(Base):
     )
 
     def __repr__(self):
-        return f"<ReviewerMatch(id={self.id}, analysis_id={self.analysis_id}, reviewer_id={self.reviewer_id}, score={self.match_score})>"
+        return (
+            f"<ReviewerMatch(id={self.id}, "
+            f"analysis_id={self.analysis_id}, "
+            f"reviewer_id={self.reviewer_id}, "
+            f"score={self.match_score})>"
+        )
