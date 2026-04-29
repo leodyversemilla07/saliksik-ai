@@ -94,8 +94,7 @@ class NLPModelManager:
 
         except OSError:
             logger.warning(
-                f"spaCy model '{model_name}' not installed. "
-                f"Install with: python -m spacy download {model_name}"
+                f"spaCy model '{model_name}' not installed. Install with: python -m spacy download {model_name}"
             )
 
             # Try to use blank model as fallback

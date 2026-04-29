@@ -108,9 +108,7 @@ class LanguageDetector:
         self.default_language = default_language
 
         if not LANGDETECT_AVAILABLE:
-            logger.warning(
-                "langdetect not available. Language detection will default to English."
-            )
+            logger.warning("langdetect not available. Language detection will default to English.")
 
         logger.info(f"LanguageDetector initialized (default: {default_language})")
 
@@ -129,18 +127,14 @@ class LanguageDetector:
         if len(text.strip()) < min_length:
             return LanguageInfo(
                 code=self.default_language,
-                name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get(
-                    "name", "English"
-                ),
+                name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get("name", "English"),
                 confidence=1.0,
             )
 
         if not LANGDETECT_AVAILABLE:
             return LanguageInfo(
                 code=self.default_language,
-                name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get(
-                    "name", "English"
-                ),
+                name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get("name", "English"),
                 confidence=1.0,
             )
 
@@ -151,9 +145,7 @@ class LanguageDetector:
             if not lang_probs:
                 return LanguageInfo(
                     code=self.default_language,
-                    name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get(
-                        "name", "English"
-                    ),
+                    name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get("name", "English"),
                     confidence=0.5,
                 )
 
@@ -167,26 +159,18 @@ class LanguageDetector:
                 lang_name = self.SUPPORTED_LANGUAGES[lang_code]["name"]
             else:
                 # Fall back to default for unsupported languages
-                logger.info(
-                    f"Detected unsupported language '{lang_code}', falling back to default"
-                )
+                logger.info(f"Detected unsupported language '{lang_code}', falling back to default")
                 lang_code = self.default_language
-                lang_name = self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get(
-                    "name", "English"
-                )
+                lang_name = self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get("name", "English")
                 confidence = 0.5
 
-            return LanguageInfo(
-                code=lang_code, name=lang_name, confidence=round(confidence, 4)
-            )
+            return LanguageInfo(code=lang_code, name=lang_name, confidence=round(confidence, 4))
 
         except Exception as e:
             logger.warning(f"Language detection failed: {e}")
             return LanguageInfo(
                 code=self.default_language,
-                name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get(
-                    "name", "English"
-                ),
+                name=self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get("name", "English"),
                 confidence=0.5,
             )
 
@@ -225,7 +209,5 @@ def get_language_detector() -> LanguageDetector:
     if _language_detector is None:
         from app.core.config import settings
 
-        _language_detector = LanguageDetector(
-            default_language=settings.DEFAULT_LANGUAGE
-        )
+        _language_detector = LanguageDetector(default_language=settings.DEFAULT_LANGUAGE)
     return _language_detector

@@ -69,8 +69,7 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
 
     if not settings.SMTP_HOST:
         logger.info(
-            "EMAIL VERIFICATION (dev mode — SMTP not configured): "
-            "username=%s email=%s url=%s",
+            "EMAIL VERIFICATION (dev mode — SMTP not configured): username=%s email=%s url=%s",
             username,
             to_email,
             verification_url,
@@ -95,9 +94,7 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
         return False
 
 
-def send_verification_email_async_safe(
-    to_email: str, username: str, token: str
-) -> None:
+def send_verification_email_async_safe(to_email: str, username: str, token: str) -> None:
     """
     Fire-and-forget wrapper: call from an async context via run_in_executor,
     or directly from a Celery task.  Swallows all exceptions so a mail

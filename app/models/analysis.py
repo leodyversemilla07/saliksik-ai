@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Optional
+
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     JSON,
@@ -15,6 +16,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.core.utils import utc_now
+
+if TYPE_CHECKING:
+    from app.models.document_fingerprint import DocumentFingerprint
+    from app.models.reviewer import ReviewerMatch
+    from app.models.user import User
 
 
 class ManuscriptAnalysis(Base):
@@ -51,7 +57,7 @@ class ManuscriptAnalysis(Base):
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="analyses")
-    fingerprint: Mapped[Optional[DocumentFingerprint]] = relationship(
+    fingerprint: Mapped[DocumentFingerprint | None] = relationship(
         "DocumentFingerprint",
         back_populates="analysis",
         uselist=False,
@@ -83,6 +89,4 @@ class ProcessingError(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=utc_now, index=True)
 
     # Composite index for error analysis
-    __table_args__ = (
-        Index("ix_processing_errors_type_date", "error_type", "created_at"),
-    )
+    __table_args__ = (Index("ix_processing_errors_type_date", "error_type", "created_at"),)

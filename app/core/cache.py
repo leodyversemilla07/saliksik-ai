@@ -38,9 +38,7 @@ except ImportError:
     logger.warning("Redis not available, using in-memory cache")
 
 # Fallback in-memory cache with expiration tracking
-_memory_cache: Dict[
-    str, Dict[str, Any]
-] = {}  # {key: {"value": ..., "expires_at": ...}}
+_memory_cache: Dict[str, Dict[str, Any]] = {}  # {key: {"value": ..., "expires_at": ...}}
 _MEMORY_CACHE_MAX_SIZE = 10_000  # Cap to prevent unbounded growth
 
 
@@ -86,9 +84,7 @@ class AIResultCache:
             return None
 
     @staticmethod
-    def cache_result(
-        text: str, result: Dict[str, Any], ttl: Optional[int] = None
-    ) -> bool:
+    def cache_result(text: str, result: Dict[str, Any], ttl: Optional[int] = None) -> bool:
         """Cache analysis result."""
         cache_key = AIResultCache._generate_cache_key(text)
         ttl = ttl or AIResultCache.DEFAULT_TTL
@@ -162,9 +158,7 @@ class AIResultCache:
             else:
                 # Count non-expired entries
                 now = time.time()
-                valid_entries = sum(
-                    1 for v in _memory_cache.values() if v.get("expires_at", 0) > now
-                )
+                valid_entries = sum(1 for v in _memory_cache.values() if v.get("expires_at", 0) > now)
                 stats["entries"] = valid_entries
                 stats["total_entries"] = len(_memory_cache)
         except Exception as e:
@@ -232,9 +226,7 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
                     cache_value = result.dict()
 
                 if REDIS_AVAILABLE and redis_client:
-                    redis_client.setex(
-                        full_key, ttl, json.dumps(cache_value, default=str)
-                    )
+                    redis_client.setex(full_key, ttl, json.dumps(cache_value, default=str))
                 else:
                     _memory_cache[full_key] = {
                         "value": cache_value,
@@ -271,9 +263,7 @@ def invalidate_cache(pattern: str = "*") -> int:
             # For in-memory, we need to match keys manually
             import fnmatch
 
-            keys_to_delete = [
-                k for k in _memory_cache.keys() if fnmatch.fnmatch(k, pattern)
-            ]
+            keys_to_delete = [k for k in _memory_cache.keys() if fnmatch.fnmatch(k, pattern)]
             for key in keys_to_delete:
                 del _memory_cache[key]
                 count += 1
@@ -295,9 +285,7 @@ def cleanup_expired_cache() -> int:
         return 0  # Redis handles expiration automatically
 
     now = time.time()
-    expired_keys = [
-        k for k, v in _memory_cache.items() if v.get("expires_at", 0) <= now
-    ]
+    expired_keys = [k for k, v in _memory_cache.items() if v.get("expires_at", 0) <= now]
 
     for key in expired_keys:
         del _memory_cache[key]

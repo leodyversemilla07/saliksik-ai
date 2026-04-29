@@ -43,9 +43,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against a hash."""
     return bcrypt.checkpw(
         plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8")
-        if isinstance(hashed_password, str)
-        else hashed_password,
+        hashed_password.encode("utf-8") if isinstance(hashed_password, str) else hashed_password,
     )
 
 
@@ -61,16 +59,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update(
-        {"exp": expire, "type": TOKEN_TYPE_ACCESS, "iat": datetime.now(timezone.utc)}
-    )
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
+    to_encode.update({"exp": expire, "type": TOKEN_TYPE_ACCESS, "iat": datetime.now(timezone.utc)})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 
@@ -90,9 +82,7 @@ def create_refresh_token(data: dict) -> str:
             "jti": token_id,  # JWT ID for blacklisting
         }
     )
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 
@@ -107,9 +97,7 @@ def create_token_pair(user_id: int) -> Tuple[str, str]:
 def decode_access_token(token: str) -> Optional[dict]:
     """Decode and verify JWT token."""
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
         # Check if token is blacklisted
         jti = payload.get("jti")
@@ -124,9 +112,7 @@ def decode_access_token(token: str) -> Optional[dict]:
 def decode_refresh_token(token: str) -> Optional[dict]:
     """Decode and verify refresh token."""
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
         # Verify it's a refresh token
         if payload.get("type") != TOKEN_TYPE_REFRESH:
@@ -221,9 +207,7 @@ def record_failed_login(username: str) -> int:
         count = redis_client.incr(key)
         redis_client.expire(key, window_seconds)
         if count >= settings.MAX_LOGIN_ATTEMPTS:
-            locked_until = datetime.now(timezone.utc) + timedelta(
-                minutes=settings.LOCKOUT_MINUTES
-            )
+            locked_until = datetime.now(timezone.utc) + timedelta(minutes=settings.LOCKOUT_MINUTES)
             redis_client.setex(
                 f"{_LOCKOUT_UNTIL_PREFIX}{username}",
                 window_seconds,
@@ -234,9 +218,7 @@ def record_failed_login(username: str) -> int:
         _failed_attempts[username] = _failed_attempts.get(username, 0) + 1
         count = _failed_attempts[username]
         if count >= settings.MAX_LOGIN_ATTEMPTS:
-            _locked_until[username] = datetime.now(timezone.utc) + timedelta(
-                minutes=settings.LOCKOUT_MINUTES
-            )
+            _locked_until[username] = datetime.now(timezone.utc) + timedelta(minutes=settings.LOCKOUT_MINUTES)
         return count
 
 
@@ -258,9 +240,7 @@ def reset_login_attempts() -> None:
     # Also purge Redis lockout keys when Redis is available
     redis_client, redis_available = _get_redis()
     if redis_available and redis_client:
-        keys = redis_client.keys(f"{_LOCKOUT_ATTEMPTS_PREFIX}*") + redis_client.keys(
-            f"{_LOCKOUT_UNTIL_PREFIX}*"
-        )
+        keys = redis_client.keys(f"{_LOCKOUT_ATTEMPTS_PREFIX}*") + redis_client.keys(f"{_LOCKOUT_UNTIL_PREFIX}*")
         if keys:
             redis_client.delete(*keys)
 

@@ -1,9 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional
 
 from app.core.database import Base
 from app.core.utils import utc_now
+
+if TYPE_CHECKING:
+    from app.models.analysis import ManuscriptAnalysis
+    from app.models.reviewer import Reviewer
 
 
 class User(Base):
@@ -26,6 +33,6 @@ class User(Base):
 
     # Relationships
     analyses: Mapped[list["ManuscriptAnalysis"]] = relationship("ManuscriptAnalysis", back_populates="user")  # noqa: F821
-    reviewer_profile: Mapped[Optional["Reviewer"]] = relationship(
+    reviewer_profile: Mapped[Reviewer | None] = relationship(
         "Reviewer", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )  # noqa: F821

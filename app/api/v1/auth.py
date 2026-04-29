@@ -79,9 +79,7 @@ def _send_verification_email_background(email: str, username: str, token: str) -
         loop = asyncio.get_running_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
-    loop.run_in_executor(
-        None, send_verification_email_async_safe, email, username, token
-    )
+    loop.run_in_executor(None, send_verification_email_async_safe, email, username, token)
 
 
 @router.post("/api-key", response_model=ApiKeyResponse)
@@ -96,7 +94,8 @@ async def get_or_create_api_key(current_user: CurrentUser, db: DbSession):
 
     api_key: str = current_user.api_key or ""  # Should not be None after above check
     return ApiKeyResponse(
-        api_key=api_key, created_at=current_user.created_at  # type: ignore[arg-type]
+        api_key=api_key,
+        created_at=current_user.created_at,  # type: ignore[arg-type]
     )
 
 
@@ -113,7 +112,8 @@ async def rotate_api_key(current_user: CurrentUser, db: DbSession):
     logger.info(f"API Key rotated for user: {current_user.username}")
 
     return ApiKeyRotateResponse(
-        api_key=current_user.api_key or "", previous_key_revoked=old_key_existed  # type: ignore[arg-type]
+        api_key=current_user.api_key or "",
+        previous_key_revoked=old_key_existed,  # type: ignore[arg-type]
     )
 
 
@@ -123,9 +123,7 @@ async def revoke_api_key(current_user: CurrentUser, db: DbSession):
     Revoke (delete) API Key without generating a new one.
     """
     if not current_user.api_key:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No API key to revoke"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No API key to revoke")
 
     current_user.api_key = None
     await db.commit()
@@ -174,9 +172,7 @@ async def register(user_data: UserRegister, db: DbSession):
     clean_email = user_data.email.strip().lower()
 
     # Check if user exists
-    stmt = select(User).filter(
-        or_(User.username == clean_username, User.email == clean_email)
-    )
+    stmt = select(User).filter(or_(User.username == clean_username, User.email == clean_email))
     result = await db.execute(stmt)
     existing_user = result.scalar_one_or_none()
 
@@ -202,9 +198,7 @@ async def register(user_data: UserRegister, db: DbSession):
     # Generate email verification token and schedule email (fire-and-forget)
     verification_token = _create_email_verification_token()
     await _save_verification_token(db, new_user, verification_token)
-    _send_verification_email_background(
-        new_user.email, new_user.username, verification_token
-    )
+    _send_verification_email_background(new_user.email, new_user.username, verification_token)
 
     # Create access and refresh tokens
     access_token, refresh_token = create_token_pair(new_user.id)
@@ -225,9 +219,7 @@ async def register(user_data: UserRegister, db: DbSession):
     summary="Login to get access token",
     responses={401: {"description": "Invalid credentials"}},
 )
-async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession
-):
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
     """
     Authenticate user and return access/refresh tokens.
 
@@ -246,8 +238,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                f"Account temporarily locked due to too many failed attempts. "
-                f"Try again in {minutes_left} minute(s)."
+                f"Account temporarily locked due to too many failed attempts. Try again in {minutes_left} minute(s)."
             ),
             headers={"Retry-After": str(seconds_remaining)},
         )
@@ -264,9 +255,8 @@ async def login(
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=(
-                f"Account locked after too many failed attempts. Try again in "
-                f"{settings.LOCKOUT_MINUTES} minute(s)."
-            ),
+                    f"Account locked after too many failed attempts. Try again in {settings.LOCKOUT_MINUTES} minute(s)."
+                ),
             )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -317,9 +307,7 @@ async def refresh_access_token(request: RefreshTokenRequest, db: DbSession):
 
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
     # Verify user still exists and is active
     stmt = select(User).filter(User.id == int(user_id))
@@ -368,9 +356,7 @@ async def logout(
         if blacklist_token(request.refresh_token):
             tokens_blacklisted += 1
 
-    logger.info(
-        f"User logged out: {current_user.username} ({tokens_blacklisted} tokens blacklisted)"
-    )
+    logger.info(f"User logged out: {current_user.username} ({tokens_blacklisted} tokens blacklisted)")
 
     return {
         "message": "Logged out successfully",
@@ -379,9 +365,7 @@ async def logout(
 
 
 @router.post("/change-password")
-async def change_password(
-    request: PasswordChangeRequest, current_user: CurrentUser, db: DbSession
-):
+async def change_password(request: PasswordChangeRequest, current_user: CurrentUser, db: DbSession):
     """
     Change user password. Requires current password verification.
     """
@@ -478,15 +462,11 @@ async def resend_verification(
     Returns 400 if the email is already verified.
     """
     if current_user.is_email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already verified"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already verified")
 
     verification_token = _create_email_verification_token()
     await _save_verification_token(db, current_user, verification_token)
-    _send_verification_email_background(
-        current_user.email, current_user.username, verification_token
-    )
+    _send_verification_email_background(current_user.email, current_user.username, verification_token)
 
     logger.info("Verification email resent for user: %s", current_user.username)
     return ResendVerificationResponse()

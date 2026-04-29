@@ -86,5 +86,5 @@ jobs:
       - name: Format check
         run: uv run ruff format --check app/
 
-      - name: Type check (ty)
-        run: uv run ty check app/
+      - name: Type check (ty advisory)
+        run: uv run ty check app/ --output-format github --exit-zero

@@ -69,9 +69,7 @@ async def pre_review(
             from io import BytesIO
 
             loop = asyncio.get_event_loop()
-            manuscript_text = await loop.run_in_executor(
-                None, pre_reviewer.extract_text_from_pdf, BytesIO(content)
-            )
+            manuscript_text = await loop.run_in_executor(None, pre_reviewer.extract_text_from_pdf, BytesIO(content))
 
             if not manuscript_text or not manuscript_text.strip():
                 raise HTTPException(
@@ -147,9 +145,7 @@ async def pre_review(
 
 
 @router.get("/status/{task_id}")
-async def get_analysis_status(
-    task_id: str, db: DbSession, current_user: AuthenticatedUser
-):
+async def get_analysis_status(task_id: str, db: DbSession, current_user: AuthenticatedUser):
     """Check the status of an analysis task."""
     stmt = select(ManuscriptAnalysis).filter(
         ManuscriptAnalysis.task_id == task_id,
@@ -159,9 +155,7 @@ async def get_analysis_status(
     analysis = result.scalar_one_or_none()
 
     if not analysis:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Analysis task not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis task not found")
 
     if analysis.status == "COMPLETED":
         # Type narrowing: when status is COMPLETED, these fields must be set
@@ -179,9 +173,7 @@ async def get_analysis_status(
             metadata=AnalysisMetadata(
                 analysis_id=analysis.id,
                 input_length=len(analysis.manuscript_text),
-                processing_time=round(analysis.processing_time, 2)
-                if analysis.processing_time
-                else 0,
+                processing_time=round(analysis.processing_time, 2) if analysis.processing_time else 0,
                 user=current_user.username,
                 timestamp=created_at,
                 cached=False,
@@ -258,9 +250,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
 
 
 @router.get("/history", response_model=AnalysisHistoryResponse)
-async def get_history(
-    db: DbSession, current_user: AuthenticatedUser, page: int = 1, page_size: int = 20
-):
+async def get_history(db: DbSession, current_user: AuthenticatedUser, page: int = 1, page_size: int = 20):
     """Get user's analysis history with pagination."""
 
     page_size = min(page_size, 100)
@@ -275,9 +265,7 @@ async def get_history(
 
     # Count total
     count_stmt = (
-        select(func.count())
-        .select_from(ManuscriptAnalysis)
-        .filter(ManuscriptAnalysis.user_id == current_user.id)
+        select(func.count()).select_from(ManuscriptAnalysis).filter(ManuscriptAnalysis.user_id == current_user.id)
     )
     total_count_result = await db.execute(count_stmt)
     total_count = total_count_result.scalar()

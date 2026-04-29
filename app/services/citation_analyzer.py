@@ -136,9 +136,7 @@ class CitationAnalyzer:
     }
 
     # DOI pattern
-    DOI_PATTERN = re.compile(
-        r"(?:doi:?\s*|https?://doi\.org/)?(10\.\d{4,}/[^\s]+)", re.IGNORECASE
-    )
+    DOI_PATTERN = re.compile(r"(?:doi:?\s*|https?://doi\.org/)?(10\.\d{4,}/[^\s]+)", re.IGNORECASE)
 
     # Year pattern
     YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
@@ -201,9 +199,7 @@ class CitationAnalyzer:
         scores["mla"] = len(mla_refs)
 
         # Check for Chicago style (Titles in italics or specific patterns)
-        chicago_refs = re.findall(
-            r"[A-Z][a-z]+\.\s+[A-Z].+?\.\s+[A-Z][a-z]+:", references_text
-        )
+        chicago_refs = re.findall(r"[A-Z][a-z]+\.\s+[A-Z].+?\.\s+[A-Z][a-z]+:", references_text)
         scores["chicago"] = len(chicago_refs)
 
         # Return format with highest score
@@ -279,9 +275,7 @@ class CitationAnalyzer:
         if author_match:
             author_str = author_match.group(1)
             # Split by 'and' or '&'
-            authors = re.split(
-                r"\s*(?:,\s*(?:and|&)\s*|,\s*&\s*|\s+and\s+|\s+&\s+)", author_str
-            )
+            authors = re.split(r"\s*(?:,\s*(?:and|&)\s*|,\s*&\s*|\s+and\s+|\s+&\s+)", author_str)
             citation.authors = [a.strip() for a in authors if a.strip()]
 
         # Check for common issues
@@ -311,9 +305,7 @@ class CitationAnalyzer:
         for fmt in ["apa", "mla", "ieee", "chicago"]:
             pattern = self.PATTERNS[fmt]["in_text"]
             for match in pattern.finditer(body_text):
-                citation = InTextCitation(
-                    raw_text=match.group(0), position=match.start()
-                )
+                citation = InTextCitation(raw_text=match.group(0), position=match.start())
 
                 if fmt == "ieee":
                     # IEEE uses numbers
@@ -393,9 +385,7 @@ class CitationAnalyzer:
         in_text_citations = self.extract_in_text_citations(text)
 
         # Validate
-        missing, orphans, validation_issues = self.validate_citations(
-            references, in_text_citations
-        )
+        missing, orphans, validation_issues = self.validate_citations(references, in_text_citations)
 
         # Calculate statistics
         valid_count = sum(1 for r in references if r.format_valid)
@@ -430,14 +420,10 @@ class CitationAnalyzer:
                     )
 
         # Calculate format consistency
-        format_consistency = (
-            (valid_count / len(references) * 100) if references else 100.0
-        )
+        format_consistency = (valid_count / len(references) * 100) if references else 100.0
 
         # Calculate average age
-        avg_age = (
-            sum(self.current_year - y for y in years) / len(years) if years else 0.0
-        )
+        avg_age = sum(self.current_year - y for y in years) / len(years) if years else 0.0
 
         return CitationAnalysisResult(
             total_citations=len(references),

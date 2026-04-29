@@ -2,7 +2,6 @@
 Alembic database migration script.
 """
 
-
 from alembic.config import Config
 
 from alembic import command

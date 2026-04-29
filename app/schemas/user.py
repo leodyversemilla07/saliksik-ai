@@ -44,9 +44,7 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
-    expires_in: int = Field(
-        default=10080, description="Access token expiration in minutes"
-    )
+    expires_in: int = Field(default=10080, description="Access token expiration in minutes")
     user: UserResponse
 
 
@@ -62,9 +60,7 @@ class RefreshTokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    expires_in: int = Field(
-        default=60, description="Access token expiration in minutes"
-    )
+    expires_in: int = Field(default=60, description="Access token expiration in minutes")
 
 
 class ApiKeyResponse(BaseModel):

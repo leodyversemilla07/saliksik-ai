@@ -20,44 +20,26 @@ class ReviewerCreate(BaseModel):
     expertise_description: Optional[str] = Field(
         None, max_length=1000, description="Free-text description of expertise"
     )
-    institution: Optional[str] = Field(
-        None, max_length=255, description="Institution or organization name"
-    )
-    department: Optional[str] = Field(
-        None, max_length=255, description="Department or division"
-    )
+    institution: Optional[str] = Field(None, max_length=255, description="Institution or organization name")
+    department: Optional[str] = Field(None, max_length=255, description="Department or division")
     orcid_id: Optional[str] = Field(
         None,
         pattern=r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$",
         description="ORCID identifier (format: 0000-0000-0000-0000)",
     )
-    max_assignments: int = Field(
-        default=5, ge=1, le=20, description="Maximum concurrent review assignments"
-    )
+    max_assignments: int = Field(default=5, ge=1, le=20, description="Maximum concurrent review assignments")
 
 
 class ReviewerUpdate(BaseModel):
     """Schema for updating a reviewer profile."""
 
-    expertise_keywords: Optional[List[str]] = Field(
-        None, max_length=20, description="Updated expertise keywords"
-    )
-    expertise_description: Optional[str] = Field(
-        None, max_length=1000, description="Updated expertise description"
-    )
-    institution: Optional[str] = Field(
-        None, max_length=255, description="Updated institution"
-    )
-    department: Optional[str] = Field(
-        None, max_length=255, description="Updated department"
-    )
+    expertise_keywords: Optional[List[str]] = Field(None, max_length=20, description="Updated expertise keywords")
+    expertise_description: Optional[str] = Field(None, max_length=1000, description="Updated expertise description")
+    institution: Optional[str] = Field(None, max_length=255, description="Updated institution")
+    department: Optional[str] = Field(None, max_length=255, description="Updated department")
     orcid_id: Optional[str] = Field(None, description="Updated ORCID identifier")
-    is_available: Optional[bool] = Field(
-        None, description="Whether accepting new reviews"
-    )
-    max_assignments: Optional[int] = Field(
-        None, ge=1, le=20, description="Updated max assignments"
-    )
+    is_available: Optional[bool] = Field(None, description="Whether accepting new reviews")
+    max_assignments: Optional[int] = Field(None, ge=1, le=20, description="Updated max assignments")
 
 
 class ReviewerPublicResponse(BaseModel):
@@ -136,21 +118,15 @@ class ReviewerMatchResponse(BaseModel):
 class ReviewerAssignRequest(BaseModel):
     """Request to assign a reviewer to a manuscript."""
 
-    send_invitation: bool = Field(
-        default=True, description="Whether to send an invitation notification"
-    )
-    message: Optional[str] = Field(
-        None, max_length=500, description="Optional message to include with invitation"
-    )
+    send_invitation: bool = Field(default=True, description="Whether to send an invitation notification")
+    message: Optional[str] = Field(None, max_length=500, description="Optional message to include with invitation")
 
 
 class ReviewerMatchStatus(BaseModel):
     """Request to update reviewer match status."""
 
     status: str = Field(..., description="New status: accepted, declined, completed")
-    response_message: Optional[str] = Field(
-        None, max_length=500, description="Optional response message"
-    )
+    response_message: Optional[str] = Field(None, max_length=500, description="Optional response message")
 
 
 class ReviewerListResponse(BaseModel):

@@ -34,9 +34,7 @@ async def get_user_by_api_key(
     return result.scalar_one_or_none()
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], db: DbSession
-) -> User:
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
     """
     Dependency to get current authenticated user.
     """

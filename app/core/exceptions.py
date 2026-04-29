@@ -78,9 +78,7 @@ class ConflictError(AppExceptionError):
     """Conflict exception (e.g., duplicate resource)."""
 
     def __init__(self, message: str):
-        super().__init__(
-            message=message, status_code=status.HTTP_409_CONFLICT, error_code="CONFLICT"
-        )
+        super().__init__(message=message, status_code=status.HTTP_409_CONFLICT, error_code="CONFLICT")
 
 
 class ServiceUnavailableError(AppExceptionError):
@@ -94,9 +92,7 @@ class ServiceUnavailableError(AppExceptionError):
         )
 
 
-def create_error_response(
-    status_code: int, error_code: str, message: str, details: dict = None
-) -> JSONResponse:
+def create_error_response(status_code: int, error_code: str, message: str, details: dict = None) -> JSONResponse:
     """Create a standardized error response."""
     content = {"error": {"code": error_code, "message": message}}
     if details:
@@ -108,21 +104,15 @@ def create_error_response(
 async def app_exception_handler(request: Request, exc: AppExceptionError) -> JSONResponse:
     """Handle application-specific exceptions."""
     logger.warning(f"AppExceptionError: {exc.error_code} - {exc.message}")
-    return create_error_response(
-        status_code=exc.status_code, error_code=exc.error_code, message=exc.message
-    )
+    return create_error_response(status_code=exc.status_code, error_code=exc.error_code, message=exc.message)
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle FastAPI HTTP exceptions."""
-    return create_error_response(
-        status_code=exc.status_code, error_code="HTTP_ERROR", message=str(exc.detail)
-    )
+    return create_error_response(status_code=exc.status_code, error_code="HTTP_ERROR", message=str(exc.detail))
 
 
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle Pydantic validation errors."""
     errors = []
     for error in exc.errors():
@@ -138,9 +128,7 @@ async def validation_exception_handler(
     )
 
 
-async def sqlalchemy_exception_handler(
-    request: Request, exc: SQLAlchemyError
-) -> JSONResponse:
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     """Handle SQLAlchemy database errors."""
     logger.error(f"Database error: {str(exc)}", exc_info=True)
 

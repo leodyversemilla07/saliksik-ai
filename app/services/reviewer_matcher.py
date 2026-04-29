@@ -66,9 +66,7 @@ class ReviewerMatcher:
                 self._model = None
         return self._model
 
-    def create_expertise_embedding(
-        self, keywords: List[str], description: Optional[str] = None
-    ) -> Optional[bytes]:
+    def create_expertise_embedding(self, keywords: List[str], description: Optional[str] = None) -> Optional[bytes]:
         """
         Create an embedding vector from reviewer expertise.
 
@@ -107,9 +105,7 @@ class ReviewerMatcher:
     def _deserialize_embedding(self, embedding_bytes: bytes) -> Optional[np.ndarray]:
         """Deserialize an embedding from JSON-encoded bytes."""
         try:
-            return np.array(
-                json.loads(embedding_bytes.decode("utf-8")), dtype=np.float64
-            )
+            return np.array(json.loads(embedding_bytes.decode("utf-8")), dtype=np.float64)
         except Exception as e:
             logger.error(f"Failed to deserialize embedding: {e}")
             return None
@@ -149,9 +145,7 @@ class ReviewerMatcher:
 
         return min(similarity, 1.0), list(matched)
 
-    def calculate_semantic_similarity(
-        self, manuscript_text: str, reviewer_embedding: bytes
-    ) -> float:
+    def calculate_semantic_similarity(self, manuscript_text: str, reviewer_embedding: bytes) -> float:
         """
         Calculate semantic similarity using embeddings.
 
@@ -182,9 +176,7 @@ class ReviewerMatcher:
             logger.error(f"Semantic similarity calculation failed: {e}")
             return 0.0
 
-    def calculate_hybrid_score(
-        self, keyword_score: float, semantic_score: float, keyword_weight: float = 0.6
-    ) -> float:
+    def calculate_hybrid_score(self, keyword_score: float, semantic_score: float, keyword_weight: float = 0.6) -> float:
         """
         Combine keyword and semantic scores into a hybrid score.
 
@@ -252,9 +244,7 @@ class ReviewerMatcher:
             if reviewer.expertise_embedding:
                 # Use summary or first part of text for semantic matching
                 text_sample = manuscript_text[:2000] if manuscript_text else ""
-                semantic_score = self.calculate_semantic_similarity(
-                    text_sample, reviewer.expertise_embedding
-                )
+                semantic_score = self.calculate_semantic_similarity(text_sample, reviewer.expertise_embedding)
 
                 if semantic_score > 0:
                     match_method = "hybrid" if keyword_score > 0 else "semantic"

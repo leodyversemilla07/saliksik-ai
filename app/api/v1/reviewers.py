@@ -70,9 +70,7 @@ def _reviewer_to_public_response(reviewer: Reviewer) -> ReviewerPublicResponse:
 
 
 @router.post("/", response_model=ReviewerResponse, status_code=status.HTTP_201_CREATED)
-async def create_reviewer_profile(
-    request: ReviewerCreate, db: DbSession, current_user: AuthenticatedUser
-):
+async def create_reviewer_profile(request: ReviewerCreate, db: DbSession, current_user: AuthenticatedUser):
     """
     Create a reviewer profile for the current user.
 
@@ -98,26 +96,14 @@ async def create_reviewer_profile(
         # Sanitize inputs
         clean_keywords = sanitize_keywords(request.expertise_keywords)
         clean_description = (
-            sanitize_string(request.expertise_description, max_length=1000)
-            if request.expertise_description
-            else None
+            sanitize_string(request.expertise_description, max_length=1000) if request.expertise_description else None
         )
-        clean_institution = (
-            sanitize_string(request.institution, max_length=255)
-            if request.institution
-            else None
-        )
-        clean_department = (
-            sanitize_string(request.department, max_length=255)
-            if request.department
-            else None
-        )
+        clean_institution = sanitize_string(request.institution, max_length=255) if request.institution else None
+        clean_department = sanitize_string(request.department, max_length=255) if request.department else None
 
         # Create expertise embedding
         matcher = get_reviewer_matcher()
-        embedding = matcher.create_expertise_embedding(
-            clean_keywords, clean_description
-        )
+        embedding = matcher.create_expertise_embedding(clean_keywords, clean_description)
 
         # Create reviewer profile
         reviewer = Reviewer(
@@ -165,9 +151,7 @@ async def get_my_reviewer_profile(db: DbSession, current_user: AuthenticatedUser
 
 
 @router.put("/me", response_model=ReviewerResponse)
-async def update_my_reviewer_profile(
-    request: ReviewerUpdate, db: DbSession, current_user: AuthenticatedUser
-):
+async def update_my_reviewer_profile(request: ReviewerUpdate, db: DbSession, current_user: AuthenticatedUser):
     """Update the current user's reviewer profile."""
     stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
     result = await db.execute(stmt)
@@ -197,10 +181,7 @@ async def update_my_reviewer_profile(
             reviewer.max_assignments = request.max_assignments
 
         # Re-create embedding if keywords or description changed
-        if (
-            request.expertise_keywords is not None
-            or request.expertise_description is not None
-        ):
+        if request.expertise_keywords is not None or request.expertise_description is not None:
             matcher = get_reviewer_matcher()
             reviewer.expertise_embedding = matcher.create_expertise_embedding(
                 reviewer.expertise_keywords, reviewer.expertise_description
@@ -251,9 +232,7 @@ async def list_reviewers(
     if available_only:
         count_base = count_base.filter(Reviewer.is_available == True)
     if keyword:
-        count_base = count_base.filter(
-            Reviewer.expertise_keywords.contains([keyword.lower()])
-        )
+        count_base = count_base.filter(Reviewer.expertise_keywords.contains([keyword.lower()]))
     count_stmt = select(func.count()).select_from(count_base.subquery())
     count_result = await db.execute(count_stmt)
     total_count = count_result.scalar()
@@ -273,9 +252,7 @@ async def list_reviewers(
     )
 
 
-@router.get(
-    "/analysis/{analysis_id}/suggestions", response_model=ReviewerSuggestionsResponse
-)
+@router.get("/analysis/{analysis_id}/suggestions", response_model=ReviewerSuggestionsResponse)
 async def get_reviewer_suggestions(
     analysis_id: int,
     db: DbSession,
@@ -301,9 +278,7 @@ async def get_reviewer_suggestions(
     analysis = result.scalar_one_or_none()
 
     if not analysis:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
 
     # Check permission (user must own the analysis or be admin)
     if analysis.user_id != current_user.id:
@@ -328,9 +303,7 @@ async def get_reviewer_suggestions(
     )
 
     # Count available reviewers
-    count_stmt = (
-        select(func.count()).select_from(Reviewer).filter(Reviewer.is_available == True)
-    )
+    count_stmt = select(func.count()).select_from(Reviewer).filter(Reviewer.is_available == True)
     count_result = await db.execute(count_stmt)
     available_count = count_result.scalar()
 
@@ -354,9 +327,7 @@ async def get_reviewer_suggestions(
     )
 
 
-@router.post(
-    "/analysis/{analysis_id}/assign/{reviewer_id}", response_model=ReviewerMatchResponse
-)
+@router.post("/analysis/{analysis_id}/assign/{reviewer_id}", response_model=ReviewerMatchResponse)
 async def assign_reviewer(
     analysis_id: int,
     reviewer_id: int,
@@ -373,9 +344,7 @@ async def assign_reviewer(
     analysis = result.scalar_one_or_none()
 
     if not analysis:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
 
     # Check permission
     if analysis.user_id != current_user.id:
@@ -390,9 +359,7 @@ async def assign_reviewer(
     reviewer = result.scalar_one_or_none()
 
     if not reviewer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reviewer not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reviewer not found")
 
     if not reviewer.is_accepting_reviews:
         raise HTTPException(
@@ -477,9 +444,7 @@ async def get_my_assignments(
     reviewer = result.scalar_one_or_none()
 
     if not reviewer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No reviewer profile found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No reviewer profile found")
 
     stmt = select(ReviewerMatch).filter(ReviewerMatch.reviewer_id == reviewer.id)
 
@@ -525,9 +490,7 @@ async def update_assignment_status(
     match = result.scalar_one_or_none()
 
     if not match:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
 
     # Check permission (must be the assigned reviewer)
     stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)

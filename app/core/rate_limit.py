@@ -25,9 +25,7 @@ try:
 except Exception as e:
     redis_client = None
     REDIS_AVAILABLE = False
-    logger.warning(
-        f"Rate limiter could not import Redis client: {e}. Using in-memory fallback."
-    )
+    logger.warning(f"Rate limiter could not import Redis client: {e}. Using in-memory fallback.")
 
 
 class InMemoryRateLimiter:
@@ -60,9 +58,7 @@ class InMemoryRateLimiter:
                 for k in sorted_keys[: len(sorted_keys) // 4]:
                     del self._requests[k]
 
-    def is_allowed(
-        self, key: str, max_requests: int, window_seconds: int
-    ) -> Tuple[bool, int]:
+    def is_allowed(self, key: str, max_requests: int, window_seconds: int) -> Tuple[bool, int]:
         """
         Check if request is allowed under rate limit.
 
@@ -75,9 +71,7 @@ class InMemoryRateLimiter:
         window_start = now - window_seconds
 
         # Clean old requests
-        self._requests[key] = [
-            req_time for req_time in self._requests[key] if req_time > window_start
-        ]
+        self._requests[key] = [req_time for req_time in self._requests[key] if req_time > window_start]
 
         current_count = len(self._requests[key])
 
@@ -94,9 +88,7 @@ class RedisRateLimiter:
     def __init__(self, client):
         self.client = client
 
-    def is_allowed(
-        self, key: str, max_requests: int, window_seconds: int
-    ) -> Tuple[bool, int]:
+    def is_allowed(self, key: str, max_requests: int, window_seconds: int) -> Tuple[bool, int]:
         """
         Check if request is allowed under rate limit.
 
@@ -190,20 +182,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # General rate limit based on auth status
             is_authenticated = self._is_authenticated(request)
             if is_authenticated:
-                max_requests, window_seconds = parse_rate_limit(
-                    settings.RATE_LIMIT_USER
-                )
+                max_requests, window_seconds = parse_rate_limit(settings.RATE_LIMIT_USER)
                 key_prefix = "rate:user"
             else:
-                max_requests, window_seconds = parse_rate_limit(
-                    settings.RATE_LIMIT_ANON
-                )
+                max_requests, window_seconds = parse_rate_limit(settings.RATE_LIMIT_ANON)
                 key_prefix = "rate:anon"
 
             rate_key = f"{key_prefix}:{client_id}"
-            is_allowed, remaining = rate_limiter.is_allowed(
-                rate_key, max_requests, window_seconds
-            )
+            is_allowed, remaining = rate_limiter.is_allowed(rate_key, max_requests, window_seconds)
 
         if not is_allowed:
             logger.warning(f"Rate limit exceeded for {client_id}")

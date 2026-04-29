@@ -47,9 +47,7 @@ else:
         pool_recycle=POOL_RECYCLE,
     )
 
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
-)
+AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 
 # 2. Sync Engine (for Celery Tasks & Migrations)
 is_sqlite_sync = "sqlite" in settings.sync_database_url.lower()
@@ -112,9 +110,7 @@ def get_pool_status() -> dict:
             "checked_out": pool.checkedout(),
             "overflow": pool.overflow(),
             "checked_in": pool.checkedin(),
-            "invalid": pool.invalidatedcount()
-            if hasattr(pool, "invalidatedcount")
-            else 0,
+            "invalid": pool.invalidatedcount() if hasattr(pool, "invalidatedcount") else 0,
         }
     except Exception as e:
         logger.debug(f"Could not get pool status: {e}")

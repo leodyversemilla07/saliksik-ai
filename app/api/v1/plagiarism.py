@@ -25,9 +25,7 @@ router = APIRouter()
 
 
 @router.post("/check", response_model=PlagiarismResult)
-async def check_plagiarism(
-    request: PlagiarismCheckRequest, db: DbSession, current_user: AuthenticatedUser
-):
+async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, current_user: AuthenticatedUser):
     """
     Check manuscript text for plagiarism against stored documents.
 
@@ -47,9 +45,7 @@ async def check_plagiarism(
         detector = get_plagiarism_detector()
 
         # Check against database (async)
-        result = await detector.check_similarity_with_database_async(
-            text=request.manuscript_text, db=db
-        )
+        result = await detector.check_similarity_with_database_async(text=request.manuscript_text, db=db)
 
         logger.info(
             f"Plagiarism check by {current_user.username}: "
@@ -114,9 +110,7 @@ async def rebuild_plagiarism_index(db: DbSession, current_user: AdminUser):
         detector = get_plagiarism_detector()
 
         # Get all analyses with their fingerprints (async)
-        stmt = select(ManuscriptAnalysis).filter(
-            ManuscriptAnalysis.status == "COMPLETED"
-        )
+        stmt = select(ManuscriptAnalysis).filter(ManuscriptAnalysis.status == "COMPLETED")
         result = await db.execute(stmt)
         analyses = result.scalars().all()
 
@@ -131,9 +125,7 @@ async def rebuild_plagiarism_index(db: DbSession, current_user: AdminUser):
                 if success:
                     indexed_count += 1
 
-        logger.info(
-            f"Rebuilt plagiarism index: {indexed_count} documents indexed by {current_user.username}"
-        )
+        logger.info(f"Rebuilt plagiarism index: {indexed_count} documents indexed by {current_user.username}")
 
         return {
             "message": "Index rebuilt successfully",

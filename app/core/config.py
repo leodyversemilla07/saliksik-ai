@@ -112,9 +112,7 @@ class Settings(BaseSettings):
     EMAIL_VERIFY_EXPIRE_HOURS: int = 24
     FRONTEND_URL: str = "http://localhost:3000"
 
-    model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=True, extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 
 settings = Settings()

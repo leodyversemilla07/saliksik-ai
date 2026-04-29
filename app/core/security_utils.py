@@ -24,9 +24,7 @@ MAX_TEXT_LENGTH = 100_000  # 100K characters for manuscript text
 SCRIPT_PATTERN = re.compile(r"<script[^>]*>.*?</script>", re.IGNORECASE | re.DOTALL)
 EVENT_HANDLER_PATTERN = re.compile(r"\bon\w+\s*=", re.IGNORECASE)
 SQL_INJECTION_PATTERNS = [
-    re.compile(
-        r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE)\b)", re.IGNORECASE
-    ),
+    re.compile(r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE)\b)", re.IGNORECASE),
     re.compile(r"(--|#|/\*|\*/)", re.IGNORECASE),
     re.compile(r"(\bOR\b|\bAND\b)\s+\d+\s*=\s*\d+", re.IGNORECASE),
 ]
@@ -37,9 +35,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     Middleware to limit request body size to prevent DoS attacks.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         content_length = request.headers.get("content-length")
         content_type = request.headers.get("content-type", "")
 

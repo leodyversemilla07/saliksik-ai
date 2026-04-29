@@ -2,6 +2,10 @@
 Reviewer models for reviewer matching feature.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -15,10 +19,13 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.orm import Mapped, relationship
-from typing import Optional
 
 from app.core.database import Base
 from app.core.utils import utc_now
+
+if TYPE_CHECKING:
+    from app.models.analysis import ManuscriptAnalysis
+    from app.models.user import User
 
 
 class Reviewer(Base):
@@ -42,9 +49,7 @@ class Reviewer(Base):
 
     # Expertise information
     expertise_keywords = Column(JSON, default=list)  # List of keyword strings
-    expertise_embedding = Column(
-        LargeBinary, nullable=True
-    )  # Serialized embedding vector
+    expertise_embedding = Column(LargeBinary, nullable=True)  # Serialized embedding vector
     expertise_description = Column(String(1000), nullable=True)  # Free-text description
 
     # Professional information
@@ -68,11 +73,7 @@ class Reviewer(Base):
     )  # noqa: F821
 
     # Composite index for finding available reviewers
-    __table_args__ = (
-        Index(
-            "ix_reviewers_available_assignments", "is_available", "current_assignments"
-        ),
-    )
+    __table_args__ = (Index("ix_reviewers_available_assignments", "is_available", "current_assignments"),)
 
     def __repr__(self):
         return f"<Reviewer(id={self.id}, user_id={self.user_id})>"
@@ -117,9 +118,7 @@ class ReviewerMatch(Base):
     match_method = Column(String(50), default="keyword")  # keyword, semantic, hybrid
 
     # Status tracking
-    status = Column(
-        String(20), default="suggested", index=True
-    )  # suggested, invited, accepted, declined, completed
+    status = Column(String(20), default="suggested", index=True)  # suggested, invited, accepted, declined, completed
 
     # Timestamps
     created_at = Column(DateTime, default=utc_now, index=True)

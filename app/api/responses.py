@@ -63,11 +63,7 @@ VALIDATION_ERROR_RESPONSE = {
 
 RATE_LIMIT_RESPONSE = {
     "description": "Rate limit exceeded",
-    "content": {
-        "application/json": {
-            "example": {"detail": "Rate limit exceeded. Try again in 60 seconds."}
-        }
-    },
+    "content": {"application/json": {"example": {"detail": "Rate limit exceeded. Try again in 60 seconds."}}},
 }
 
 SERVER_ERROR_RESPONSE = {
@@ -111,9 +107,7 @@ AUTH_RESPONSES = {
                         },
                         "weak_password": {
                             "summary": "Weak password",
-                            "value": {
-                                "detail": "Password must be at least 8 characters"
-                            },
+                            "value": {"detail": "Password must be at least 8 characters"},
                         },
                     }
                 }
@@ -145,11 +139,7 @@ AUTH_RESPONSES = {
         },
         401: {
             "description": "Invalid credentials",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Incorrect username or password"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Incorrect username or password"}}},
         },
     },
     "refresh": {
@@ -167,11 +157,7 @@ AUTH_RESPONSES = {
         },
         401: {
             "description": "Invalid refresh token",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid or expired refresh token"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Invalid or expired refresh token"}}},
         },
     },
 }
@@ -200,15 +186,11 @@ ANALYSIS_RESPONSES = {
                     "examples": {
                         "no_input": {
                             "summary": "No input provided",
-                            "value": {
-                                "detail": "Either 'manuscript_file' (PDF) or 'manuscript_text' is required"
-                            },
+                            "value": {"detail": "Either 'manuscript_file' (PDF) or 'manuscript_text' is required"},
                         },
                         "too_short": {
                             "summary": "Text too short",
-                            "value": {
-                                "detail": "Text too short for meaningful analysis (minimum 50 characters)"
-                            },
+                            "value": {"detail": "Text too short for meaningful analysis (minimum 50 characters)"},
                         },
                         "invalid_pdf": {
                             "summary": "Invalid PDF",
@@ -303,9 +285,7 @@ ANALYSIS_RESPONSES = {
             "description": "Invalid input",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Text too short for meaningful analysis (minimum 50 characters)"
-                    }
+                    "example": {"detail": "Text too short for meaningful analysis (minimum 50 characters)"}
                 }
             },
         },
@@ -335,9 +315,7 @@ PLAGIARISM_RESPONSES = {
             "description": "Invalid input",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Text too short for plagiarism check (minimum 100 characters)"
-                    }
+                    "example": {"detail": "Text too short for plagiarism check (minimum 100 characters)"}
                 }
             },
         },
@@ -393,11 +371,7 @@ REVIEWER_RESPONSES = {
         },
         400: {
             "description": "Profile creation failed",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "User already has a reviewer profile"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "User already has a reviewer profile"}}},
         },
     },
     "list": {

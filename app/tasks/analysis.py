@@ -84,11 +84,7 @@ def process_manuscript_task(self, analysis_id: int, text: str):
 
     try:
         # Get analysis record
-        analysis = (
-            db.query(ManuscriptAnalysis)
-            .filter(ManuscriptAnalysis.id == analysis_id)
-            .first()
-        )
+        analysis = db.query(ManuscriptAnalysis).filter(ManuscriptAnalysis.id == analysis_id).first()
 
         if not analysis:
             logger.error(f"Analysis ID {analysis_id} not found")
@@ -110,10 +106,7 @@ def process_manuscript_task(self, analysis_id: int, text: str):
             },
         )
 
-        logger.info(
-            f"Starting analysis for ID {analysis_id} "
-            f"(attempt {retry_count + 1}/{self.max_retries + 1})"
-        )
+        logger.info(f"Starting analysis for ID {analysis_id} (attempt {retry_count + 1}/{self.max_retries + 1})")
 
         # Run AI processing
         processor = get_pre_reviewer()
@@ -185,10 +178,7 @@ def process_manuscript_task(self, analysis_id: int, text: str):
         # Check if we should retry
         retry_count = self.request.retries
         if retry_count < self.max_retries:
-            logger.info(
-                f"Retrying analysis {analysis_id} "
-                f"(attempt {retry_count + 2}/{self.max_retries + 1})"
-            )
+            logger.info(f"Retrying analysis {analysis_id} (attempt {retry_count + 2}/{self.max_retries + 1})")
             if analysis:
                 analysis.status = "RETRYING"
                 db.commit()

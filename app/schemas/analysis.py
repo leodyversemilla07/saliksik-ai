@@ -14,9 +14,7 @@ from app.schemas.plagiarism import PlagiarismResult
 class AnalysisRequest(BaseModel):
     """Analysis request schema."""
 
-    manuscript_text: str = Field(
-        ..., min_length=50, max_length=250000
-    )  # Approx 40k words
+    manuscript_text: str = Field(..., min_length=50, max_length=250000)  # Approx 40k words
 
 
 class DemoAnalysisRequest(BaseModel):
@@ -67,9 +65,7 @@ class AnalysisResponse(BaseModel):
     # Enhancement features (all optional)
     language: Optional[LanguageInfo] = None  # Phase 4: Multi-language
     plagiarism: Optional[PlagiarismResult] = None  # Phase 1: Plagiarism detection
-    citation_analysis: Optional[CitationAnalysisResult] = (
-        None  # Phase 2: Citation analysis
-    )
+    citation_analysis: Optional[CitationAnalysisResult] = None  # Phase 2: Citation analysis
 
 
 class AnalysisHistoryItem(BaseModel):

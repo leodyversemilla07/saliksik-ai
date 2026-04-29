@@ -147,9 +147,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
     EXCLUDE_PATHS = {"/health", "/docs", "/redoc", "/openapi.json", "/api/openapi.json"}
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         request_id_var.set(request_id)

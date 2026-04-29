@@ -61,9 +61,7 @@ class PlagiarismDetector:
     3. Using LSH to efficiently find similar documents
     """
 
-    def __init__(
-        self, num_perm: int = 128, threshold: float = 0.5, shingle_size: int = 5
-    ):
+    def __init__(self, num_perm: int = 128, threshold: float = 0.5, shingle_size: int = 5):
         """
         Initialize the plagiarism detector.
 
@@ -77,9 +75,7 @@ class PlagiarismDetector:
         self.shingle_size = shingle_size
 
         if not DATASKETCH_AVAILABLE:
-            logger.warning(
-                "datasketch not available. Plagiarism detection will be limited."
-            )
+            logger.warning("datasketch not available. Plagiarism detection will be limited.")
             self._lsh = None
         else:
             self._lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
@@ -87,9 +83,7 @@ class PlagiarismDetector:
         # In-memory index for documents (for demo/testing)
         self._document_index: Dict[str, Dict[str, Any]] = {}
 
-        logger.info(
-            f"PlagiarismDetector initialized (threshold={threshold}, shingles={shingle_size})"
-        )
+        logger.info(f"PlagiarismDetector initialized (threshold={threshold}, shingles={shingle_size})")
 
     def _preprocess_text(self, text: str) -> str:
         """Normalize and clean text for comparison."""
@@ -156,9 +150,7 @@ class PlagiarismDetector:
         try:
             import numpy as np
 
-            hash_values = np.array(
-                json.loads(fingerprint_bytes.decode("utf-8")), dtype=np.uint64
-            )
+            hash_values = np.array(json.loads(fingerprint_bytes.decode("utf-8")), dtype=np.uint64)
             mh = MinHash(num_perm=len(hash_values))
             mh.hashvalues = hash_values
             return mh
@@ -166,9 +158,7 @@ class PlagiarismDetector:
             logger.error(f"Failed to deserialize fingerprint: {e}")
             return None
 
-    def add_to_index(
-        self, doc_id: int, text: str, filename: Optional[str] = None
-    ) -> bool:
+    def add_to_index(self, doc_id: int, text: str, filename: Optional[str] = None) -> bool:
         """
         Add a document to the LSH index for future comparisons.
 
@@ -219,9 +209,7 @@ class PlagiarismDetector:
         """Calculate Jaccard similarity between two MinHash objects."""
         return minhash1.jaccard(minhash2)
 
-    def find_matching_segments(
-        self, text1_shingles: set, text2_shingles: set, max_segments: int = 5
-    ) -> List[str]:
+    def find_matching_segments(self, text1_shingles: set, text2_shingles: set, max_segments: int = 5) -> List[str]:
         """Find overlapping text segments between two documents."""
         common = text1_shingles.intersection(text2_shingles)
         # Return up to max_segments examples
@@ -296,9 +284,7 @@ class PlagiarismDetector:
                 similarity = self.calculate_similarity(input_minhash, doc_minhash)
 
                 if similarity > self.threshold:
-                    matched_segments = self.find_matching_segments(
-                        input_shingles, doc_shingles
-                    )
+                    matched_segments = self.find_matching_segments(input_shingles, doc_shingles)
 
                     similar_documents.append(
                         SimilarDocument(
@@ -386,9 +372,7 @@ class PlagiarismDetector:
             if similarity > self.threshold:
                 # Get shingles for segment matching
                 stored_shingles = set(fp.shingles) if fp.shingles else set()
-                matched_segments = self.find_matching_segments(
-                    input_shingles, stored_shingles
-                )
+                matched_segments = self.find_matching_segments(input_shingles, stored_shingles)
 
                 # Get filename from related analysis
                 filename = None
