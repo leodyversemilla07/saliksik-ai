@@ -39,8 +39,8 @@ class ManuscriptAnalysis(Base):
 
     # Analysis results
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    keywords: Mapped[dict] = mapped_column(JSON, default=list)
-    language_quality: Mapped[dict] = mapped_column(JSON, default=dict)
+    keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
+    language_quality: Mapped[dict[str, float]] = mapped_column(JSON, default=dict)
 
     # Enhancement features results
     detected_language: Mapped[str | None] = mapped_column(String(10), nullable=True)

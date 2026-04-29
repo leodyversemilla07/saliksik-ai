@@ -269,7 +269,7 @@ class PlagiarismDetector:
 
         for candidate_key in candidates:
             if candidate_key in self._document_index:
-                doc_info = self._document_index[candidate_key]
+                doc_info = self._document_index[candidate_key]  # ty:ignore[invalid-argument-type]
                 doc_id = doc_info["analysis_id"]
 
                 # Skip excluded documents

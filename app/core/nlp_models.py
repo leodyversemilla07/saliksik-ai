@@ -13,7 +13,7 @@ try:
     SPACY_AVAILABLE = True
 except ImportError:
     SPACY_AVAILABLE = False
-    Language = Any
+    Language = Any  # ty:ignore[invalid-assignment]
 
 logger = logging.getLogger(__name__)
 

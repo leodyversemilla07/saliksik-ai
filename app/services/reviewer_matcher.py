@@ -34,7 +34,7 @@ class ReviewerSuggestion:
     matched_keywords: List[str]
     match_method: str  # keyword, semantic, hybrid
     institution: Optional[str] = None
-    expertise_keywords: List[str] = None
+    expertise_keywords: List[str] | None = None
     available_slots: int = 0
 
 

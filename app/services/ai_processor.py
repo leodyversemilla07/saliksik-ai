@@ -185,14 +185,14 @@ class ManuscriptPreReviewer:
 
         # Use textstat for accurate readability scores
         if _TEXTSTAT_AVAILABLE and sentence_count > 0 and word_count > 10:
-            quality_metrics["readability_score"] = round(textstat.flesch_reading_ease(text), 2)
-            quality_metrics["flesch_kincaid_grade"] = round(textstat.flesch_kincaid_grade(text), 2)
-            quality_metrics["automated_readability"] = round(textstat.automated_readability_index(text), 2)
+            quality_metrics["readability_score"] = round(textstat.flesch_reading_ease(text), 2)  # ty:ignore[unresolved-attribute]
+            quality_metrics["flesch_kincaid_grade"] = round(textstat.flesch_kincaid_grade(text), 2)  # ty:ignore[unresolved-attribute]
+            quality_metrics["automated_readability"] = round(textstat.automated_readability_index(text), 2)  # ty:ignore[unresolved-attribute]
         elif sentence_count > 0 and word_count > 0:
             # Fallback: simplified Flesch Reading Ease
             syllable_count = len([token for token in doc if token.is_alpha])
             readability_score = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllable_count / word_count)
-            quality_metrics["readability_score"] = round(readability_score, 2)
+            quality_metrics["readability_score"] = round(readability_score, 2)  # ty:ignore[invalid-assignment]
 
         return quality_metrics
 

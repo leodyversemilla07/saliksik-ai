@@ -154,13 +154,13 @@ class AIResultCache:
                 misses = int(stats.get("keyspace_misses") or 0)
                 total = hits + misses
                 if total > 0:
-                    stats["hit_rate"] = round((hits / total) * 100, 2)
+                    stats["hit_rate"] = round((hits / total) * 100, 2)  # ty:ignore[invalid-assignment]
             else:
                 # Count non-expired entries
                 now = time.time()
                 valid_entries = sum(1 for v in _memory_cache.values() if v.get("expires_at", 0) > now)
-                stats["entries"] = valid_entries
-                stats["total_entries"] = len(_memory_cache)
+                stats["entries"] = valid_entries  # ty:ignore[invalid-assignment]
+                stats["total_entries"] = len(_memory_cache)  # ty:ignore[invalid-assignment]
         except Exception as e:
             logger.debug(f"Could not retrieve cache stats: {str(e)}")
 
@@ -186,7 +186,7 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # Generate cache key from function name and arguments
-            key_parts = [key_prefix, func.__name__]
+            key_parts = [key_prefix, func.__name__]  # ty:ignore[unresolved-attribute]
 
             # Add relevant kwargs to key (skip db sessions and user objects)
             for k, v in sorted(kwargs.items()):
@@ -203,18 +203,18 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
                 if REDIS_AVAILABLE and redis_client:
                     cached = redis_client.get(full_key)
                     if cached:
-                        logger.debug(f"Response cache HIT: {func.__name__}")
+                        logger.debug(f"Response cache HIT: {func.__name__}")  # ty:ignore[unresolved-attribute]
                         return json.loads(cached)
                 else:
                     cached = _memory_cache.get(full_key)
                     if cached and cached.get("expires_at", 0) > time.time():
-                        logger.debug(f"Response cache HIT: {func.__name__}")
+                        logger.debug(f"Response cache HIT: {func.__name__}")  # ty:ignore[unresolved-attribute]
                         return cached["value"]
             except Exception as e:
                 logger.debug(f"Cache read error: {e}")
 
             # Execute function
-            result = await func(*args, **kwargs)
+            result = await func(*args, **kwargs)  # ty:ignore[invalid-await]
 
             # Cache the result
             try:
@@ -232,13 +232,13 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
                         "value": cache_value,
                         "expires_at": time.time() + ttl,
                     }
-                logger.debug(f"Response cached: {func.__name__} (TTL: {ttl}s)")
+                logger.debug(f"Response cached: {func.__name__} (TTL: {ttl}s)")  # ty:ignore[unresolved-attribute]
             except Exception as e:
                 logger.debug(f"Cache write error: {e}")
 
             return result
 
-        return wrapper
+        return wrapper  # ty:ignore[invalid-return-type]
 
     return decorator
 

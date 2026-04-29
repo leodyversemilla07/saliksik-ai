@@ -294,7 +294,7 @@ async def get_reviewer_suggestions(
     # Find matching reviewers (async)
     matcher = get_reviewer_matcher()
     suggestions = await matcher.find_matching_reviewers_async(
-        manuscript_keywords=manuscript_keywords,  # ty:ignore[invalid-argument-type]
+        manuscript_keywords=manuscript_keywords,
         manuscript_text=manuscript_text,
         db=db,
         top_n=top_n,
@@ -309,7 +309,7 @@ async def get_reviewer_suggestions(
 
     return ReviewerSuggestionsResponse(
         analysis_id=analysis_id,
-        manuscript_keywords=manuscript_keywords,  # ty:ignore[invalid-argument-type]
+        manuscript_keywords=manuscript_keywords,
         suggestions=[
             ReviewerSuggestion(
                 reviewer_id=s.reviewer_id,
@@ -318,7 +318,7 @@ async def get_reviewer_suggestions(
                 matched_keywords=s.matched_keywords,
                 match_method=s.match_method,
                 institution=s.institution,
-                expertise_keywords=s.expertise_keywords,
+                expertise_keywords=s.expertise_keywords or [],
                 available_slots=s.available_slots,
             )
             for s in suggestions
@@ -386,7 +386,7 @@ async def assign_reviewer(
         matcher = get_reviewer_matcher()
         keyword_score, matched_keywords = matcher.calculate_keyword_similarity(
             analysis.keywords or [],
-            reviewer.expertise_keywords or [],  # ty:ignore[invalid-argument-type]
+            reviewer.expertise_keywords or [],
         )
 
         # Create match record

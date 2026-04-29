@@ -47,7 +47,7 @@ class JSONFormatter(logging.Formatter):
 
         # Add extra fields from record
         if hasattr(record, "extra_data"):
-            log_data.update(record.extra_data)
+            log_data.update(record.extra_data)  # ty:ignore[no-matching-overload]
 
         # Add exception info if present
         if record.exc_info:

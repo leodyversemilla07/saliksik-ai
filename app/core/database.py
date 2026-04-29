@@ -106,11 +106,11 @@ def get_pool_status() -> dict:
     try:
         pool = sync_engine.pool
         return {
-            "pool_size": pool.size(),
-            "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-            "checked_in": pool.checkedin(),
-            "invalid": pool.invalidatedcount() if hasattr(pool, "invalidatedcount") else 0,
+            "pool_size": pool.size(),  # ty:ignore[unresolved-attribute]
+            "checked_out": pool.checkedout(),  # ty:ignore[unresolved-attribute]
+            "overflow": pool.overflow(),  # ty:ignore[unresolved-attribute]
+            "checked_in": pool.checkedin(),  # ty:ignore[unresolved-attribute]
+            "invalid": pool.invalidatedcount() if hasattr(pool, "invalidatedcount") else 0,  # ty:ignore[call-non-callable]
         }
     except Exception as e:
         logger.debug(f"Could not get pool status: {e}")

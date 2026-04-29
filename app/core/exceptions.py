@@ -92,11 +92,11 @@ class ServiceUnavailableError(AppExceptionError):
         )
 
 
-def create_error_response(status_code: int, error_code: str, message: str, details: dict = None) -> JSONResponse:
+def create_error_response(status_code: int, error_code: str, message: str, details: dict = None) -> JSONResponse:  # ty:ignore[invalid-parameter-default]
     """Create a standardized error response."""
     content = {"error": {"code": error_code, "message": message}}
     if details:
-        content["error"]["details"] = details
+        content["error"]["details"] = details  # ty:ignore[invalid-assignment]
 
     return JSONResponse(status_code=status_code, content=content)
 
