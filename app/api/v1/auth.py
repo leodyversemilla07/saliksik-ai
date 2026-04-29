@@ -66,7 +66,7 @@ def _create_email_verification_token() -> str:
 async def _save_verification_token(db: AsyncSession, user: User, token: str) -> None:
     """Persist the verification token (with expiry) on the user row."""
     user.verification_token = token  # type: ignore[invalid-assignment]
-    user.verification_token_expires_at = datetime.now(timezone.utc) + timedelta(  # type: ignore[invalid-assignment]
+    user.verification_token_expires_at = datetime.now(timezone.utc) + timedelta(  # type: ignore[invalid-assignment]  # ty:ignore[invalid-assignment]
         hours=settings.EMAIL_VERIFY_EXPIRE_HOURS
     )
     await db.commit()
@@ -95,7 +95,7 @@ async def get_or_create_api_key(current_user: CurrentUser, db: DbSession):
     api_key: str = current_user.api_key or ""  # Should not be None after above check
     return ApiKeyResponse(
         api_key=api_key,
-        created_at=current_user.created_at,  # type: ignore[arg-type]
+        created_at=current_user.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -268,7 +268,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
     clear_failed_logins(form_data.username)
 
     # Update last login
-    user.last_login = datetime.now(timezone.utc)  # type: ignore[invalid-assignment]
+    user.last_login = datetime.now(timezone.utc)  # type: ignore[invalid-assignment]  # ty:ignore[invalid-assignment]
     await db.commit()
 
     # Create access and refresh tokens
@@ -405,7 +405,7 @@ async def change_password(request: PasswordChangeRequest, current_user: CurrentU
 )
 async def verify_email(
     token: str = Query(..., description="Verification token received via email"),
-    db: DbSession = ...,  # injected via Annotated[..., Depends(get_db)]
+    db: DbSession = ...,  # injected via Annotated[..., Depends(get_db)]  # ty:ignore[invalid-parameter-default]
 ):
     """
     Verify a user's email address.
@@ -426,10 +426,10 @@ async def verify_email(
 
     # Make expires_at timezone-aware for comparison (SQLite stores naive UTC)
     token_expires = user.verification_token_expires_at
-    if token_expires is not None and token_expires.tzinfo is None:
-        token_expires = token_expires.replace(tzinfo=timezone.utc)
+    if token_expires is not None and token_expires.tzinfo is None:  # ty:ignore[unresolved-attribute]
+        token_expires = token_expires.replace(tzinfo=timezone.utc)  # ty:ignore[unresolved-attribute]
 
-    if token_expires is None or now > token_expires:
+    if token_expires is None or now > token_expires:  # ty:ignore[unsupported-operator]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired verification token",
