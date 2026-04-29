@@ -9,31 +9,29 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, LargeBinary
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time."""
+    return datetime.now(timezone.utc)
+
 
 if TYPE_CHECKING:
     from app.models.analysis import ManuscriptAnalysis
 
 
-def utc_now():
-    """Return current UTC time."""
-    return datetime.now(timezone.utc)
-
-
 class DocumentFingerprint(Base):
     """
     Store document fingerprints for plagiarism detection.
-
-    Each manuscript analysis can have an associated fingerprint
-    that enables efficient similarity checking using MinHash LSH.
     """
 
     __tablename__ = "document_fingerprints"
 
-    id = Column(Integer, primary_key=True, index=True)
-    analysis_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    analysis_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("manuscript_analyses.id", ondelete="CASCADE"),
         unique=True,
@@ -42,17 +40,16 @@ class DocumentFingerprint(Base):
     )
 
     # Serialized MinHash object
-    fingerprint_hash = Column(LargeBinary, nullable=False)
+    fingerprint_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
     # Store shingles for debugging and segment matching
-    # JSON array of n-gram strings
-    shingles = Column(JSON, default=list)
+    shingles: Mapped[list] = mapped_column(JSON, default=list)
 
     # Metadata
-    created_at = Column(DateTime, default=utc_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
 
     # Relationship to the analysis
-    analysis: Mapped[ManuscriptAnalysis] = relationship(
+    analysis: Mapped["ManuscriptAnalysis"] = relationship(
         "ManuscriptAnalysis", back_populates="fingerprint", uselist=False
     )
 
