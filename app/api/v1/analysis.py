@@ -166,14 +166,26 @@ async def get_analysis_status(task_id: str, db: DbSession, current_user: Authent
         keywords: list[str] = analysis.keywords if isinstance(analysis.keywords, list) else []
         created_at: datetime | None = analysis.created_at  # type: ignore[assignment]
 
+        # Build LanguageQuality from dict with proper types
+        lq = analysis.language_quality or {}
+        language_quality = LanguageQuality(
+            word_count=int(lq.get("word_count", 0)),
+            unique_words=int(lq.get("unique_words", 0)),
+            sentence_count=int(lq.get("sentence_count", 0)),
+            named_entities=int(lq.get("named_entities", 0)),
+            readability_score=float(lq.get("readability_score", 0.0)),
+            grammar_issues=int(lq["grammar_issues"]) if "grammar_issues" in lq else None,
+            grammar_check_available=bool(lq["grammar_check_available"]) if "grammar_check_available" in lq else None,
+        )
+
         return AnalysisResponse(
             summary=analysis.summary,
             keywords=keywords,
-            language_quality=LanguageQuality(**analysis.language_quality),
+            language_quality=language_quality,
             metadata=AnalysisMetadata(
-                analysis_id=analysis.id,
+                analysis_id=int(analysis.id),
                 input_length=len(analysis.manuscript_text),
-                processing_time=round(analysis.processing_time, 2) if analysis.processing_time else 0,
+                processing_time=float(round(analysis.processing_time, 2)) if analysis.processing_time else 0.0,
                 user=current_user.username,
                 timestamp=created_at,
                 cached=False,
@@ -282,8 +294,8 @@ async def get_history(db: DbSession, current_user: AuthenticatedUser, page: int 
                 id=analysis.id,
                 filename=analysis.original_filename,
                 input_type=analysis.input_type,
-                word_count=analysis.language_quality.get("word_count", 0),
-                readability_score=analysis.language_quality.get("readability_score", 0),
+                word_count=int(analysis.language_quality.get("word_count", 0) or 0),
+                readability_score=float(analysis.language_quality.get("readability_score", 0) or 0),
                 created_at=analysis.created_at,
                 processing_time=analysis.processing_time,
             )
