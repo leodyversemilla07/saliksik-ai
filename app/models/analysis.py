@@ -51,14 +51,16 @@ class ManuscriptAnalysis(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="analyses")  # noqa: F821
     fingerprint: Mapped[Optional["DocumentFingerprint"]] = relationship(
-        "DocumentFingerprint",
+        "DocumentFingerprint",  # noqa: F821
         back_populates="analysis",
         uselist=False,
         cascade="all, delete-orphan",
-    )  # noqa: F821
+    )
     reviewer_matches: Mapped[list["ReviewerMatch"]] = relationship(
-        "ReviewerMatch", back_populates="analysis", cascade="all, delete-orphan"
-    )  # noqa: F821
+        "ReviewerMatch",  # noqa: F821
+        back_populates="analysis",
+        cascade="all, delete-orphan",
+    )
 
     # Composite indexes for common query patterns
     __table_args__ = (
