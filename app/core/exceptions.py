@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 logger = logging.getLogger(__name__)
 
 
-class AppException(Exception):
+class AppExceptionErrorError(Exception):
     """Base application exception."""
 
     def __init__(
@@ -27,7 +27,7 @@ class AppException(Exception):
         super().__init__(message)
 
 
-class NotFoundError(AppException):
+class NotFoundError(AppExceptionError):
     """Resource not found exception."""
 
     def __init__(self, resource: str, identifier: str | None = None):
@@ -41,7 +41,7 @@ class NotFoundError(AppException):
         )
 
 
-class UnauthorizedError(AppException):
+class UnauthorizedError(AppExceptionError):
     """Unauthorized access exception."""
 
     def __init__(self, message: str = "Not authenticated"):
@@ -52,7 +52,7 @@ class UnauthorizedError(AppException):
         )
 
 
-class ForbiddenError(AppException):
+class ForbiddenError(AppExceptionError):
     """Forbidden access exception."""
 
     def __init__(self, message: str = "Access forbidden"):
@@ -63,7 +63,7 @@ class ForbiddenError(AppException):
         )
 
 
-class BadRequestError(AppException):
+class BadRequestError(AppExceptionError):
     """Bad request exception."""
 
     def __init__(self, message: str):
@@ -74,7 +74,7 @@ class BadRequestError(AppException):
         )
 
 
-class ConflictError(AppException):
+class ConflictError(AppExceptionError):
     """Conflict exception (e.g., duplicate resource)."""
 
     def __init__(self, message: str):
@@ -83,7 +83,7 @@ class ConflictError(AppException):
         )
 
 
-class ServiceUnavailableError(AppException):
+class ServiceUnavailableError(AppExceptionError):
     """Service unavailable exception."""
 
     def __init__(self, service: str):
@@ -105,9 +105,9 @@ def create_error_response(
     return JSONResponse(status_code=status_code, content=content)
 
 
-async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+async def app_exception_handler(request: Request, exc: AppExceptionError) -> JSONResponse:
     """Handle application-specific exceptions."""
-    logger.warning(f"AppException: {exc.error_code} - {exc.message}")
+    logger.warning(f"AppExceptionError: {exc.error_code} - {exc.message}")
     return create_error_response(
         status_code=exc.status_code, error_code=exc.error_code, message=exc.message
     )
@@ -170,7 +170,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 def register_exception_handlers(app):
     """Register all exception handlers with the FastAPI app."""
-    app.add_exception_handler(AppException, app_exception_handler)
+    app.add_exception_handler(AppExceptionError, app_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)

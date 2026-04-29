@@ -245,7 +245,10 @@ async def login(
         minutes_left = (seconds_remaining // 60) + 1
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Account temporarily locked due to too many failed attempts. Try again in {minutes_left} minute(s).",
+            detail=(
+                f"Account temporarily locked due to too many failed attempts. "
+                f"Try again in {minutes_left} minute(s)."
+            ),
             headers={"Retry-After": str(seconds_remaining)},
         )
 
@@ -260,7 +263,10 @@ async def login(
         if remaining_attempts == 0:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Account locked after too many failed attempts. Try again in {settings.LOCKOUT_MINUTES} minute(s).",
+                detail=(
+                f"Account locked after too many failed attempts. Try again in "
+                f"{settings.LOCKOUT_MINUTES} minute(s)."
+            ),
             )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

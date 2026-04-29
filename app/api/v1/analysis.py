@@ -108,7 +108,9 @@ async def pre_review(
         # Create initial record
         analysis = ManuscriptAnalysis(
             user_id=current_user.id,
-            original_filename=sanitize_filename(manuscript_file.filename) if manuscript_file and manuscript_file.filename else None,
+            original_filename=sanitize_filename(manuscript_file.filename)
+            if manuscript_file and manuscript_file.filename
+            else None,
             input_type="pdf" if manuscript_file else "text",
             manuscript_text=manuscript_text[:10000],
             status="PENDING",
