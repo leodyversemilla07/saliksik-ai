@@ -64,7 +64,7 @@ async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, curre
                     "original_filename": doc.original_filename,
                 }
                 for doc in result.similar_documents
-            ],
+            ],  # ty:ignore[invalid-argument-type]
             unique_content_percentage=result.unique_content_percentage,
             processing_time=result.processing_time,
             checked_against=result.checked_against,
