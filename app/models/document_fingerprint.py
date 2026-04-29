@@ -46,7 +46,7 @@ class DocumentFingerprint(Base):
     created_at = Column(DateTime, default=utc_now, index=True)
 
     # Relationship to the analysis
-    analysis: Mapped["ManuscriptAnalysis"] = relationship(
+    analysis: Mapped["ManuscriptAnalysis"] = relationship(  # noqa: F821
         "ManuscriptAnalysis", back_populates="fingerprint", uselist=False
     )
 

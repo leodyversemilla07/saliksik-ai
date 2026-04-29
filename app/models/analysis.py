@@ -49,16 +49,16 @@ class ManuscriptAnalysis(Base):
     processing_time: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="analyses")
+    user: Mapped["User"] = relationship("User", back_populates="analyses")  # noqa: F821
     fingerprint: Mapped[Optional["DocumentFingerprint"]] = relationship(
         "DocumentFingerprint",
         back_populates="analysis",
         uselist=False,
         cascade="all, delete-orphan",
-    )
+    )  # noqa: F821
     reviewer_matches: Mapped[list["ReviewerMatch"]] = relationship(
         "ReviewerMatch", back_populates="analysis", cascade="all, delete-orphan"
-    )
+    )  # noqa: F821
 
     # Composite indexes for common query patterns
     __table_args__ = (

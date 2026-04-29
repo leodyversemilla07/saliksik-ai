@@ -25,7 +25,7 @@ class User(Base):
     last_login: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    analyses: Mapped[list["ManuscriptAnalysis"]] = relationship("ManuscriptAnalysis", back_populates="user")
+    analyses: Mapped[list["ManuscriptAnalysis"]] = relationship("ManuscriptAnalysis", back_populates="user")  # noqa: F821
     reviewer_profile: Mapped[Optional["Reviewer"]] = relationship(
         "Reviewer", back_populates="user", uselist=False, cascade="all, delete-orphan"
-    )
+    )  # noqa: F821

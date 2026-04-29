@@ -62,10 +62,10 @@ class Reviewer(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="reviewer_profile")
+    user: Mapped["User"] = relationship("User", back_populates="reviewer_profile")  # noqa: F821
     matches: Mapped[list["ReviewerMatch"]] = relationship(
         "ReviewerMatch", back_populates="reviewer", cascade="all, delete-orphan"
-    )
+    )  # noqa: F821
 
     # Composite index for finding available reviewers
     __table_args__ = (
