@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 logger = logging.getLogger(__name__)
 
 
-class AppExceptionErrorError(Exception):
+class AppExceptionError(Exception):
     """Base application exception."""
 
     def __init__(
