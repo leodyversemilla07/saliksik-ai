@@ -7,12 +7,13 @@ import hashlib
 import json
 import logging
 import time
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Optional, ParamSpec, TypeVar, cast
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 # Try to import Redis
@@ -136,7 +137,7 @@ class AIResultCache:
     @staticmethod
     def get_cache_stats() -> Dict[str, Any]:
         """Get cache statistics."""
-        stats = {
+        stats: Dict[str, Any] = {
             "backend": "redis" if REDIS_AVAILABLE else "memory",
             "enabled": True,
         }
@@ -154,20 +155,23 @@ class AIResultCache:
                 misses = int(stats.get("keyspace_misses") or 0)
                 total = hits + misses
                 if total > 0:
-                    stats["hit_rate"] = round((hits / total) * 100, 2)  # ty:ignore[invalid-assignment]
+                    stats["hit_rate"] = round((hits / total) * 100, 2)
             else:
                 # Count non-expired entries
                 now = time.time()
                 valid_entries = sum(1 for v in _memory_cache.values() if v.get("expires_at", 0) > now)
-                stats["entries"] = valid_entries  # ty:ignore[invalid-assignment]
-                stats["total_entries"] = len(_memory_cache)  # ty:ignore[invalid-assignment]
+                stats["entries"] = valid_entries
+                stats["total_entries"] = len(_memory_cache)
         except Exception as e:
             logger.debug(f"Could not retrieve cache stats: {str(e)}")
 
         return stats
 
 
-def cached_response(ttl: int = 300, key_prefix: str = "response"):
+def cached_response(
+    ttl: int = 300,
+    key_prefix: str = "response",
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """
     Decorator for caching endpoint responses.
 
@@ -182,11 +186,12 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
             return {"items": [...]}
     """
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Generate cache key from function name and arguments
-            key_parts = [key_prefix, func.__name__]  # ty:ignore[unresolved-attribute]
+            function_name = getattr(func, "__name__", "anonymous")
+            key_parts = [key_prefix, function_name]
 
             # Add relevant kwargs to key (skip db sessions and user objects)
             for k, v in sorted(kwargs.items()):
@@ -203,27 +208,29 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
                 if REDIS_AVAILABLE and redis_client:
                     cached = redis_client.get(full_key)
                     if cached:
-                        logger.debug(f"Response cache HIT: {func.__name__}")  # ty:ignore[unresolved-attribute]
-                        return json.loads(cached)
+                        logger.debug(f"Response cache HIT: {function_name}")
+                        return cast(T, json.loads(cached))
                 else:
                     cached = _memory_cache.get(full_key)
                     if cached and cached.get("expires_at", 0) > time.time():
-                        logger.debug(f"Response cache HIT: {func.__name__}")  # ty:ignore[unresolved-attribute]
-                        return cached["value"]
+                        logger.debug(f"Response cache HIT: {function_name}")
+                        return cast(T, cached["value"])
             except Exception as e:
                 logger.debug(f"Cache read error: {e}")
 
             # Execute function
-            result = await func(*args, **kwargs)  # ty:ignore[invalid-await]
+            result = await func(*args, **kwargs)
 
             # Cache the result
             try:
                 # Convert Pydantic models to dict if needed
                 cache_value = result
-                if hasattr(result, "model_dump"):
-                    cache_value = result.model_dump()
-                elif hasattr(result, "dict"):
-                    cache_value = result.dict()
+                model_dump = getattr(result, "model_dump", None)
+                legacy_dict = getattr(result, "dict", None)
+                if callable(model_dump):
+                    cache_value = model_dump()
+                elif callable(legacy_dict):
+                    cache_value = legacy_dict()
 
                 if REDIS_AVAILABLE and redis_client:
                     redis_client.setex(full_key, ttl, json.dumps(cache_value, default=str))
@@ -232,13 +239,13 @@ def cached_response(ttl: int = 300, key_prefix: str = "response"):
                         "value": cache_value,
                         "expires_at": time.time() + ttl,
                     }
-                logger.debug(f"Response cached: {func.__name__} (TTL: {ttl}s)")  # ty:ignore[unresolved-attribute]
+                logger.debug(f"Response cached: {function_name} (TTL: {ttl}s)")
             except Exception as e:
                 logger.debug(f"Cache write error: {e}")
 
             return result
 
-        return wrapper  # ty:ignore[invalid-return-type]
+        return wrapper
 
     return decorator
 

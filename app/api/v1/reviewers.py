@@ -221,7 +221,7 @@ async def list_reviewers(
     stmt = select(Reviewer).options(selectinload(Reviewer.user))
 
     if available_only:
-        stmt = stmt.filter(Reviewer.is_available == True)
+        stmt = stmt.filter(Reviewer.is_available.is_(True))
 
     if keyword:
         # JSON array contains filter (PostgreSQL specific, falls back to LIKE for others)
@@ -230,7 +230,7 @@ async def list_reviewers(
     # Count total (without the selectinload for efficiency)
     count_base = select(Reviewer)
     if available_only:
-        count_base = count_base.filter(Reviewer.is_available == True)
+        count_base = count_base.filter(Reviewer.is_available.is_(True))
     if keyword:
         count_base = count_base.filter(Reviewer.expertise_keywords.contains([keyword.lower()]))
     count_stmt = select(func.count()).select_from(count_base.subquery())
@@ -303,7 +303,7 @@ async def get_reviewer_suggestions(
     )
 
     # Count available reviewers
-    count_stmt = select(func.count()).select_from(Reviewer).filter(Reviewer.is_available == True)
+    count_stmt = select(func.count()).select_from(Reviewer).filter(Reviewer.is_available.is_(True))
     count_result = await db.execute(count_stmt)
     available_count = count_result.scalar()
 

@@ -1,13 +1,16 @@
 """
 Tests for the cache module (in-memory fallback and Redis).
 """
+
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 import pytest
+
 from app.core.cache import (
+    _MEMORY_CACHE_MAX_SIZE,
     AIResultCache,
     _memory_cache,
-    _MEMORY_CACHE_MAX_SIZE,
     cleanup_expired_cache,
     invalidate_cache,
 )
@@ -17,8 +20,7 @@ from app.core.cache import (
 def force_memory_cache():
     """Force in-memory cache for all cache tests, even when Redis is available."""
     _memory_cache.clear()
-    with patch("app.core.cache.REDIS_AVAILABLE", False), \
-         patch("app.core.cache.redis_client", None):
+    with patch("app.core.cache.REDIS_AVAILABLE", False), patch("app.core.cache.redis_client", None):
         yield
     _memory_cache.clear()
 
@@ -93,10 +95,7 @@ class TestCacheCleanup:
         """Cache should evict oldest 25% when max size is exceeded."""
         # Fill cache to max
         for i in range(_MEMORY_CACHE_MAX_SIZE):
-            _memory_cache[f"key_{i}"] = {
-                "value": i,
-                "expires_at": time.time() + 3600
-            }
+            _memory_cache[f"key_{i}"] = {"value": i, "expires_at": time.time() + 3600}
 
         # Adding one more should trigger eviction
         AIResultCache.cache_result("overflow_text", {"new": True})

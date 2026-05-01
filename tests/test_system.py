@@ -1,9 +1,12 @@
 """
 System-level verification tests.
 """
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
 from main import app
+
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -18,6 +21,7 @@ async def test_health_check():
         assert "version" in data
         assert "environment" in data
         assert "services" in data
+
 
 @pytest.mark.asyncio
 async def test_root_endpoint():

@@ -1,17 +1,21 @@
 """
 Tests for plagiarism detection endpoints.
 """
+
 import pytest
-from app.models.user import User
-from app.core.security import get_password_hash
 
 
 @pytest.mark.asyncio
 async def test_plagiarism_check_requires_auth(client):
     """Test that plagiarism check requires authentication."""
-    response = await client.post("/api/v1/plagiarism/check", json={
-        "manuscript_text": "This is a test manuscript with enough text to pass validation for the plagiarism detection system."
-    })
+    response = await client.post(
+        "/api/v1/plagiarism/check",
+        json={
+            "manuscript_text": (
+                "This is a test manuscript with enough text to pass validation for the plagiarism detection system."
+            )
+        },
+    )
     assert response.status_code == 401
 
 
@@ -19,29 +23,28 @@ async def test_plagiarism_check_requires_auth(client):
 async def test_plagiarism_check_authenticated(client, db_session):
     """Test plagiarism check with authenticated user."""
     # Register user
-    await client.post("/api/v1/auth/register", json={
-        "username": "plagiarismuser",
-        "email": "plagiarism@example.com",
-        "password": "password123"
-    })
-    
+    await client.post(
+        "/api/v1/auth/register",
+        json={"username": "plagiarismuser", "email": "plagiarism@example.com", "password": "password123"},
+    )
+
     # Login
-    login_res = await client.post("/api/v1/auth/login", data={
-        "username": "plagiarismuser",
-        "password": "password123"
-    })
+    login_res = await client.post("/api/v1/auth/login", data={"username": "plagiarismuser", "password": "password123"})
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     # Check plagiarism
     response = await client.post(
         "/api/v1/plagiarism/check",
         json={
-            "manuscript_text": "This is a test manuscript with enough text to pass validation for the plagiarism detection system. " * 3
+            "manuscript_text": (
+                "This is a test manuscript with enough text to pass validation for the plagiarism detection system. "
+                * 3
+            )
         },
-        headers=headers
+        headers=headers,
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "is_plagiarized" in data
@@ -53,15 +56,11 @@ async def test_plagiarism_check_authenticated(client, db_session):
 async def test_plagiarism_stats(client, db_session):
     """Test plagiarism stats endpoint (requires authentication)."""
     # Register and login to get a token
-    await client.post("/api/v1/auth/register", json={
-        "username": "statsuser",
-        "email": "statsuser@example.com",
-        "password": "password123"
-    })
-    login_res = await client.post("/api/v1/auth/login", data={
-        "username": "statsuser",
-        "password": "password123"
-    })
+    await client.post(
+        "/api/v1/auth/register",
+        json={"username": "statsuser", "email": "statsuser@example.com", "password": "password123"},
+    )
+    login_res = await client.post("/api/v1/auth/login", data={"username": "statsuser", "password": "password123"})
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -77,24 +76,15 @@ async def test_plagiarism_stats(client, db_session):
 async def test_plagiarism_check_text_too_short(client, db_session):
     """Test plagiarism check with text that is too short."""
     # Register and login
-    await client.post("/api/v1/auth/register", json={
-        "username": "shorttext",
-        "email": "short@example.com",
-        "password": "password123"
-    })
-    
-    login_res = await client.post("/api/v1/auth/login", data={
-        "username": "shorttext",
-        "password": "password123"
-    })
+    await client.post(
+        "/api/v1/auth/register", json={"username": "shorttext", "email": "short@example.com", "password": "password123"}
+    )
+
+    login_res = await client.post("/api/v1/auth/login", data={"username": "shorttext", "password": "password123"})
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     # Try with short text
-    response = await client.post(
-        "/api/v1/plagiarism/check",
-        json={"manuscript_text": "Too short"},
-        headers=headers
-    )
-    
+    response = await client.post("/api/v1/plagiarism/check", json={"manuscript_text": "Too short"}, headers=headers)
+
     assert response.status_code == 422  # Validation error

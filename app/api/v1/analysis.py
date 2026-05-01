@@ -164,7 +164,7 @@ async def get_analysis_status(task_id: str, db: DbSession, current_user: Authent
         assert analysis.language_quality is not None, "Language quality should be set when completed"
 
         keywords: list[str] = analysis.keywords if isinstance(analysis.keywords, list) else []
-        created_at: datetime | None = analysis.created_at  # type: ignore[assignment]
+        created_at: datetime | None = analysis.created_at
 
         # Build LanguageQuality from dict with proper types
         lq = analysis.language_quality or {}

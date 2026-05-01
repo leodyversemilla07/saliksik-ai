@@ -47,13 +47,22 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Db
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id: int = payload.get("sub")  # ty:ignore[invalid-assignment]
-    if user_id is None:
+    token_subject = payload.get("sub")
+    if token_subject is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    try:
+        user_id = int(token_subject)
+    except (TypeError, ValueError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
     # Async query
     result = await db.execute(select(User).filter(User.id == user_id))

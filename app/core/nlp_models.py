@@ -4,16 +4,21 @@ Handles lazy loading of spaCy models for different languages.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, TypeAlias
+
+if TYPE_CHECKING:
+    from spacy.language import Language
+else:
+    Language: TypeAlias = Any
 
 try:
-    import spacy
-    from spacy.language import Language
+    import spacy as spacy_module
 
+    spacy: Any = spacy_module
     SPACY_AVAILABLE = True
 except ImportError:
+    spacy = None
     SPACY_AVAILABLE = False
-    Language = Any  # ty:ignore[invalid-assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +82,7 @@ class NLPModelManager:
         Returns:
             Loaded spaCy Language model, or None if unavailable
         """
-        if not SPACY_AVAILABLE:
+        if not SPACY_AVAILABLE or spacy is None:
             return None
 
         model_name = cls.DEFAULT_MODELS.get(lang_code)

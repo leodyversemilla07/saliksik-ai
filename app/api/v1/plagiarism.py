@@ -17,6 +17,7 @@ from app.schemas.plagiarism import (
     PlagiarismCheckRequest,
     PlagiarismIndexStats,
     PlagiarismResult,
+    SimilarDocument,
 )
 from app.services.plagiarism_detector import get_plagiarism_detector
 
@@ -57,14 +58,14 @@ async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, curre
             is_plagiarized=result.is_plagiarized,
             overall_similarity=result.overall_similarity,
             similar_documents=[
-                {
-                    "analysis_id": doc.analysis_id,
-                    "similarity_score": doc.similarity_score,
-                    "matched_segments": doc.matched_segments,
-                    "original_filename": doc.original_filename,
-                }
+                SimilarDocument(
+                    analysis_id=doc.analysis_id,
+                    similarity_score=doc.similarity_score,
+                    matched_segments=doc.matched_segments,
+                    original_filename=doc.original_filename,
+                )
                 for doc in result.similar_documents
-            ],  # ty:ignore[invalid-argument-type]
+            ],
             unique_content_percentage=result.unique_content_percentage,
             processing_time=result.processing_time,
             checked_against=result.checked_against,

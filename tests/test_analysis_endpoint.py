@@ -1,13 +1,12 @@
 """
 Tests for the analysis API endpoints.
 """
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.asyncio
 class TestAnalysisEndpoints:
-
     async def test_pre_review_requires_auth(self, client):
         """Unauthenticated requests should be rejected."""
         response = await client.post(
@@ -29,9 +28,7 @@ class TestAnalysisEndpoints:
             },
         )
 
-        login_resp = await client.post(
-            "/api/v1/auth/login", data={"username": "analyst1", "password": "Test1234!"}
-        )
+        login_resp = await client.post("/api/v1/auth/login", data={"username": "analyst1", "password": "Test1234!"})
         token = login_resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -54,9 +51,7 @@ class TestAnalysisEndpoints:
                 "password": "Test1234!",
             },
         )
-        login_resp = await client.post(
-            "/api/v1/auth/login", data={"username": "analyst2", "password": "Test1234!"}
-        )
+        login_resp = await client.post("/api/v1/auth/login", data={"username": "analyst2", "password": "Test1234!"})
         token = login_resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -70,7 +65,6 @@ class TestAnalysisEndpoints:
 
 @pytest.mark.asyncio
 class TestHealthEndpoint:
-
     async def test_health_returns_status(self, client):
         """Health endpoint should return a status field."""
         response = await client.get("/health")

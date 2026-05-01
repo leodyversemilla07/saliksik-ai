@@ -3,6 +3,7 @@ Centralized exception handling for the application.
 """
 
 import logging
+from typing import Any
 
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -92,11 +93,17 @@ class ServiceUnavailableError(AppExceptionError):
         )
 
 
-def create_error_response(status_code: int, error_code: str, message: str, details: dict = None) -> JSONResponse:  # ty:ignore[invalid-parameter-default]
+def create_error_response(
+    status_code: int,
+    error_code: str,
+    message: str,
+    details: dict[str, Any] | None = None,
+) -> JSONResponse:
     """Create a standardized error response."""
-    content = {"error": {"code": error_code, "message": message}}
+    error: dict[str, Any] = {"code": error_code, "message": message}
+    content: dict[str, Any] = {"error": error}
     if details:
-        content["error"]["details"] = details  # ty:ignore[invalid-assignment]
+        error["details"] = details
 
     return JSONResponse(status_code=status_code, content=content)
 

@@ -1,17 +1,20 @@
 """
 Script to verify that SessionLocal is available in app.core.database.
 """
+
 import sys
 from pathlib import Path
+
 from sqlalchemy.orm import Session
 
 # Add app to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+
 def test_sync_db_availability():
     print("Checking app.core.database exports...")
     try:
-        from app.core.database import SessionLocal, sync_engine, engine
+        from app.core.database import SessionLocal, engine, sync_engine
 
         print(f"✅ Found SessionLocal: {SessionLocal}")
         print(f"✅ Found sync_engine: {sync_engine}")
@@ -39,6 +42,7 @@ def test_sync_db_availability():
     except Exception as e:
         print(f"❌ Error: {e}")
         return False
+
 
 if __name__ == "__main__":
     if test_sync_db_availability():

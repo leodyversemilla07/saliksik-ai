@@ -1,9 +1,11 @@
 """
 Tests for account lockout after repeated failed login attempts.
 """
+
 import pytest
-from app.models.user import User
+
 from app.core.security import get_password_hash, reset_login_attempts
+from app.models.user import User
 
 
 @pytest.fixture(autouse=True)
@@ -18,6 +20,7 @@ def clear_lockout_state():
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def create_user(db_session, username: str, email: str, password: str = "correctpass123"):
     user = User(
         username=username,
@@ -30,15 +33,19 @@ async def create_user(db_session, username: str, email: str, password: str = "co
 
 
 async def attempt_login(client, username: str, password: str):
-    return await client.post("/api/v1/auth/login", data={
-        "username": username,
-        "password": password,
-    })
+    return await client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": username,
+            "password": password,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_failed_login_returns_remaining_attempts(client, db_session):
@@ -54,6 +61,7 @@ async def test_failed_login_returns_remaining_attempts(client, db_session):
 async def test_account_locks_after_max_attempts(client, db_session):
     """Account should be locked after MAX_LOGIN_ATTEMPTS failures."""
     from app.core.config import settings
+
     await create_user(db_session, "lockout_user2", "lockout2@example.com")
 
     for _ in range(settings.MAX_LOGIN_ATTEMPTS - 1):
@@ -70,6 +78,7 @@ async def test_account_locks_after_max_attempts(client, db_session):
 async def test_locked_account_rejects_correct_password(client, db_session):
     """Once locked, even the correct password should be rejected."""
     from app.core.config import settings
+
     await create_user(db_session, "lockout_user3", "lockout3@example.com")
 
     for _ in range(settings.MAX_LOGIN_ATTEMPTS):
@@ -85,6 +94,7 @@ async def test_locked_account_rejects_correct_password(client, db_session):
 async def test_successful_login_clears_failed_attempts(client, db_session):
     """Successful login should reset the failed attempts counter."""
     from app.core.config import settings
+
     await create_user(db_session, "lockout_user4", "lockout4@example.com")
 
     # Fail a few times (but not enough to lock)
@@ -118,6 +128,7 @@ async def test_nonexistent_user_attempts_are_tracked(client, db_session):
 async def test_lockout_response_has_timing_info(client, db_session):
     """Locked account response should include time-until-unlock in the message."""
     from app.core.config import settings
+
     await create_user(db_session, "lockout_user5", "lockout5@example.com")
 
     for _ in range(settings.MAX_LOGIN_ATTEMPTS):

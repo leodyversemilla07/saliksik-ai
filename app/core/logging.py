@@ -10,7 +10,7 @@ import uuid
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from functools import wraps
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -46,8 +46,9 @@ class JSONFormatter(logging.Formatter):
             log_data["request_id"] = request_id
 
         # Add extra fields from record
-        if hasattr(record, "extra_data"):
-            log_data.update(record.extra_data)  # ty:ignore[no-matching-overload]
+        extra_data: Any = getattr(record, "extra_data", None)
+        if isinstance(extra_data, dict):
+            log_data.update(extra_data)
 
         # Add exception info if present
         if record.exc_info:

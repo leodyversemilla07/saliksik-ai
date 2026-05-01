@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Integer, String
@@ -27,9 +28,9 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verification_token: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
-    verification_token_expires_at: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, default=utc_now)
-    last_login: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+    verification_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     analyses: Mapped[list["ManuscriptAnalysis"]] = relationship("ManuscriptAnalysis", back_populates="user")  # noqa: F821

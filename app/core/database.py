@@ -3,6 +3,7 @@ Database configuration and session management with connection pooling.
 """
 
 import logging
+from typing import Any, Callable
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -101,16 +102,25 @@ async def get_db():
             await session.close()
 
 
+def _call_pool_metric(pool: Any, metric_name: str, default: int = 0) -> int:
+    """Safely read a SQLAlchemy pool metric when the active pool exposes it."""
+    metric = getattr(pool, metric_name, None)
+    if not callable(metric):
+        return default
+    return int(metric())
+
+
 def get_pool_status() -> dict:
     """Get current connection pool status."""
     try:
         pool = sync_engine.pool
+        invalidated_count: Callable[[], int] | None = getattr(pool, "invalidatedcount", None)
         return {
-            "pool_size": pool.size(),  # ty:ignore[unresolved-attribute]
-            "checked_out": pool.checkedout(),  # ty:ignore[unresolved-attribute]
-            "overflow": pool.overflow(),  # ty:ignore[unresolved-attribute]
-            "checked_in": pool.checkedin(),  # ty:ignore[unresolved-attribute]
-            "invalid": pool.invalidatedcount() if hasattr(pool, "invalidatedcount") else 0,  # ty:ignore[call-non-callable]
+            "pool_size": _call_pool_metric(pool, "size"),
+            "checked_out": _call_pool_metric(pool, "checkedout"),
+            "overflow": _call_pool_metric(pool, "overflow"),
+            "checked_in": _call_pool_metric(pool, "checkedin"),
+            "invalid": invalidated_count() if invalidated_count else 0,
         }
     except Exception as e:
         logger.debug(f"Could not get pool status: {e}")

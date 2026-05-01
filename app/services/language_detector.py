@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 try:
-    from langdetect import DetectorFactory, detect, detect_langs
+    from langdetect import DetectorFactory, detect_langs
 
     # Make detection deterministic
     DetectorFactory.seed = 0

@@ -268,8 +268,11 @@ class PlagiarismDetector:
         checked_count = 0
 
         for candidate_key in candidates:
-            if candidate_key in self._document_index:
-                doc_info = self._document_index[candidate_key]  # ty:ignore[invalid-argument-type]
+            if not isinstance(candidate_key, str):
+                continue
+
+            doc_info = self._document_index.get(candidate_key)
+            if doc_info is not None:
                 doc_id = doc_info["analysis_id"]
 
                 # Skip excluded documents

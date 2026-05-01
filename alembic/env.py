@@ -1,11 +1,14 @@
 """
 Alembic migration environment configuration.
 """
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
+
 import os
 import sys
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 # Add project root to path so imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -14,7 +17,6 @@ from app.core.config import settings
 from app.core.database import Base
 
 # Import all models so Alembic sees them for autogenerate
-from app.models import User, ManuscriptAnalysis, ProcessingError, DocumentFingerprint, Reviewer, ReviewerMatch
 
 # Alembic Config object
 config = context.config

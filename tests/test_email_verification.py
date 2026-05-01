@@ -8,16 +8,19 @@ Tests for email verification feature:
 - Resend fails when already verified
 - Double-verification is idempotent (second attempt returns 400)
 """
+
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from app.models.user import User
-from datetime import datetime, timezone, timedelta
 
+from app.models.user import User
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _get_user_by_username(db_session, username: str) -> User:
     result = await db_session.execute(select(User).where(User.username == username))
@@ -25,11 +28,14 @@ async def _get_user_by_username(db_session, username: str) -> User:
 
 
 async def _register(client: AsyncClient, suffix: str = ""):
-    resp = await client.post("/api/v1/auth/register", json={
-        "username": f"emailtest{suffix}",
-        "email": f"emailtest{suffix}@example.com",
-        "password": "Password1!",
-    })
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": f"emailtest{suffix}",
+            "email": f"emailtest{suffix}@example.com",
+            "password": "Password1!",
+        },
+    )
     assert resp.status_code in (200, 201), resp.text
     return resp.json()
 
@@ -37,6 +43,7 @@ async def _register(client: AsyncClient, suffix: str = ""):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_register_sets_unverified(client: AsyncClient):
@@ -134,9 +141,7 @@ async def test_resend_verification_creates_new_token(client: AsyncClient, db_ses
 
 
 @pytest.mark.asyncio
-async def test_resend_verification_already_verified_returns_400(
-    client: AsyncClient, db_session
-):
+async def test_resend_verification_already_verified_returns_400(client: AsyncClient, db_session):
     """resend-verification returns 400 when the email is already verified."""
     login_data = await _register(client, "7")
     headers = {"Authorization": f"Bearer {login_data['access_token']}"}

@@ -22,7 +22,7 @@ mocks = [
     "nltk.tokenize",
     "langdetect",
     "datasketch",
-    "xxhash"
+    "xxhash",
 ]
 
 for m in mocks:
@@ -34,7 +34,7 @@ ai_processor_mock = MagicMock()
 ai_processor_mock.ManuscriptPreReviewer.return_value.generate_report.return_value = {
     "summary": "This is a mocked summary.",
     "keywords": ["mock", "test"],
-    "language_quality": {"score": 100, "issues": []}
+    "language_quality": {"score": 100, "issues": []},
 }
 sys.modules["app.services.ai_processor"] = ai_processor_mock
 
@@ -53,27 +53,25 @@ celery_task_mock = MagicMock()
 celery_task_mock.delay.return_value = MagicMock(id="fake-task-id-123")
 sys.modules["app.tasks.analysis"] = celery_task_mock
 
-import pytest
-from httpx import AsyncClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from app.core.database import Base, get_db
+import pytest  # noqa: E402
+from httpx import AsyncClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from main import app
-from app.models.user import User
+from app.core.database import Base, get_db  # noqa: E402
+from main import app  # noqa: E402
 
 # Use SQLite for testing
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_suite.db"
 
 # Configure Celery for testing (Eager mode)
-from app.celery_app import celery_app
+from app.celery_app import celery_app  # noqa: E402
+
 celery_app.conf.update(
-    broker_url='memory://',
-    result_backend='cache+memory://',
-    task_always_eager=True,
-    task_eager_propagates=True
+    broker_url="memory://", result_backend="cache+memory://", task_always_eager=True, task_eager_propagates=True
 )
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -81,6 +79,7 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 @pytest.fixture(scope="session")
 async def db_engine():
@@ -101,32 +100,30 @@ async def db_engine():
         except PermissionError:
             pass  # File may still be locked on Windows, ignore
 
+
 @pytest.fixture(scope="session")
 def sync_db_engine():
     """Synchronous engine for Celery tasks in eager mode."""
     # Must point to the same file as TEST_DATABASE_URL
-    SYNC_TEST_DB_URL = "sqlite:///./test_suite.db"
-    engine = create_engine(SYNC_TEST_DB_URL, echo=False)
+    sync_test_db_url = "sqlite:///./test_suite.db"
+    engine = create_engine(sync_test_db_url, echo=False)
     return engine
+
 
 @pytest.fixture(scope="function")
 async def db_session(db_engine):
-    async_session = async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autoflush=False
-    )
+    async_session = async_sessionmaker(bind=db_engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 
     async with async_session() as session:
         yield session
         # Rollback after each test to keep DB clean
         await session.rollback()
 
+
 @pytest.fixture(autouse=True)
 def disable_rate_limiting():
     """Disable rate limiting for all tests — tested separately in test_rate_limit.py."""
-    with patch('app.core.rate_limit.rate_limiter') as mock_rl:
+    with patch("app.core.rate_limit.rate_limiter") as mock_rl:
         mock_rl.is_allowed.return_value = (True, 999)
         yield
 
@@ -141,13 +138,15 @@ async def client(db_session, db_engine, sync_db_engine):
 
     # Patch the engine used in main.py's lifespan
     # AND patch the SessionLocal used by Celery tasks to use the sync test engine
-    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_db_engine)
+    test_session_local = sessionmaker(autocommit=False, autoflush=False, bind=sync_db_engine)
 
-    with patch("main.engine", db_engine), \
-         patch("app.core.database.SessionLocal", TestSessionLocal), \
-         patch("app.tasks.analysis.SessionLocal", TestSessionLocal):
-
+    with (
+        patch("main.engine", db_engine),
+        patch("app.core.database.SessionLocal", test_session_local),
+        patch("app.tasks.analysis.SessionLocal", test_session_local),
+    ):
         from httpx import ASGITransport
+
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
