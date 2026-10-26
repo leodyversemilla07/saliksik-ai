@@ -236,6 +236,22 @@ uv run pytest tests/test_cache.py
 uv run pytest -v
 ```
 
+### End-to-End Smoke Test
+
+With PostgreSQL, Redis, the API, and a Celery worker running:
+
+```bash
+# Exercises demo analysis, registration, submission, polling, history, and cache isolation
+uv run python scripts/smoke_test.py
+
+# Point at another instance
+uv run python scripts/smoke_test.py --base-url http://127.0.0.1:8000
+```
+
+The script runs a real analysis (including the transformer unless `AI_LIGHT_MODE=True`), creates a
+unique test user and analysis records in the target database, and exits non-zero on the first
+unexpected response.
+
 ### Linting & Type Checking
 
 ```bash

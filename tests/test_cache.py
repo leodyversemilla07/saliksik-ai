@@ -3,7 +3,7 @@ Tests for the cache module (in-memory fallback and Redis).
 """
 
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,6 +36,50 @@ class TestAIResultCache:
         key1 = AIResultCache._generate_cache_key("text A")
         key2 = AIResultCache._generate_cache_key("text B")
         assert key1 != key2
+
+    def test_generate_cache_key_different_namespaces(self):
+        default_key = AIResultCache._generate_cache_key("same text")
+        demo_key = AIResultCache._generate_cache_key("same text", namespace="demo")
+        authenticated_key = AIResultCache._generate_cache_key("same text", namespace="authenticated")
+
+        assert default_key != demo_key
+        assert demo_key != authenticated_key
+        assert demo_key == AIResultCache._generate_cache_key(" SAME TEXT ", namespace="demo")
+        assert ":demo:" in demo_key
+        assert ":authenticated:" in authenticated_key
+
+    def test_cache_isolation_between_namespaces(self):
+        text = "manuscript text used by more than one endpoint"
+        demo_result = {"summary": "demo result"}
+        authenticated_result = {"summary": "authenticated result"}
+
+        AIResultCache.cache_result(text, demo_result, namespace="demo")
+        AIResultCache.cache_result(text, authenticated_result, namespace="authenticated")
+
+        assert AIResultCache.get_cached_result(text, namespace="demo") == demo_result
+        assert AIResultCache.get_cached_result(text, namespace="authenticated") == authenticated_result
+        assert AIResultCache.get_cached_result(text) is None
+
+    def test_namespace_miss_does_not_use_default_entry(self):
+        text = "result cached without a namespace"
+        AIResultCache.cache_result(text, {"summary": "default result"})
+
+        assert AIResultCache.get_cached_result(text, namespace="demo") is None
+        assert AIResultCache.get_cached_result(text) == {"summary": "default result"}
+
+    def test_redis_backend_uses_namespaced_key(self):
+        text = "redis namespaced text"
+        fake_redis = MagicMock()
+        fake_redis.get.return_value = None
+
+        with patch("app.core.cache.REDIS_AVAILABLE", True), patch("app.core.cache.redis_client", fake_redis):
+            AIResultCache.cache_result(text, {"summary": "redis result"}, ttl=60, namespace="demo")
+            assert AIResultCache.get_cached_result(text, namespace="demo") is None
+
+        expected_key = AIResultCache._generate_cache_key(text, namespace="demo")
+        fake_redis.setex.assert_called_once()
+        assert fake_redis.setex.call_args.args[0] == expected_key
+        fake_redis.get.assert_called_once_with(expected_key)
 
     def test_cache_and_retrieve(self):
         text = "sample manuscript for caching test"
