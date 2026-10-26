@@ -106,6 +106,25 @@ Then start the Celery worker in a second terminal (required for manuscript analy
 uv run celery -A app.celery_app.celery_app worker --loglevel=INFO --queues=analysis,default
 ```
 
+### Local PostgreSQL and Redis (no Docker, no sudo)
+
+If PostgreSQL and Redis are not installed system-wide, use the local service helper:
+
+```bash
+./scripts/local-services.sh setup   # one-time: install pgserver + redislite in a user venv
+./scripts/local-services.sh up      # start PostgreSQL + Redis and create the dev database
+./scripts/local-services.sh status  # show service status
+./scripts/local-services.sh down    # stop both services
+```
+
+The helper installs binaries under `~/.local/share/saliksik-ai/services-venv`, stores data in
+`~/.local/share/saliksik-ai/{postgres,redis}`, and listens on `127.0.0.1:5432` (PostgreSQL) and
+`127.0.0.1:6379` (Redis). It also creates the `saliksik` role (password `saliksik123`) and
+`saliksik_ai_dev` database used by the quick-start `.env`.
+
+These services are unprivileged and do not start automatically after a reboot. Run
+`./scripts/local-services.sh up` before starting the API and Celery worker.
+
 Access:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
@@ -120,6 +139,9 @@ Access:
 - Python 3.12+
 - PostgreSQL 15+
 - Redis 7+ (required for background analysis; optional for caching)
+
+> No Docker or sudo access? The [local service helper](#local-postgresql-and-redis-no-docker-no-sudo)
+> installs unprivileged PostgreSQL and Redis binaries in your home directory.
 
 ### Environment Variables
 

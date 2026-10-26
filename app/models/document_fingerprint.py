@@ -46,7 +46,7 @@ class DocumentFingerprint(Base):
     shingles: Mapped[list] = mapped_column(JSON, default=list)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
 
     # Relationship to the analysis
     analysis: Mapped["ManuscriptAnalysis"] = relationship(

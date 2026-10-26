@@ -97,12 +97,9 @@ async def pre_review(
                 detail="Text exceeds maximum allowed length of 200,000 characters",
             )
 
-        # Check cache first
-        cached_result = AIResultCache.get_cached_result(manuscript_text)
-        if cached_result:
-            logger.info(f"Cache hit for user {current_user.username}")
-            cached_result["metadata"]["cached"] = True
-            return cached_result
+        # Always create a new analysis record and queue a task. Cached AI
+        # results are keyed by endpoint namespace and must not replace the
+        # submission response, which callers need for status polling.
 
         # Create initial record
         analysis = ManuscriptAnalysis(
@@ -223,8 +220,8 @@ async def demo_analysis(request: DemoAnalysisRequest):
         )
 
     try:
-        # Check cache
-        cached_result = AIResultCache.get_cached_result(manuscript_text)
+        # Check cache (demo namespace only)
+        cached_result = AIResultCache.get_cached_result(manuscript_text, namespace="demo")
         if cached_result:
             logger.info("Cache hit for demo request")
             cached_result["metadata"]["cached"] = True
@@ -249,7 +246,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
         )
 
         # Cache for 2 hours
-        AIResultCache.cache_result(manuscript_text, response.model_dump(), ttl=7200)
+        AIResultCache.cache_result(manuscript_text, response.model_dump(), ttl=7200, namespace="demo")
 
         return response
 

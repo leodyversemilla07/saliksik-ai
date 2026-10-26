@@ -50,16 +50,20 @@ class AIResultCache:
     DEFAULT_TTL = settings.CACHE_TTL
 
     @staticmethod
-    def _generate_cache_key(text: str) -> str:
-        """Generate unique cache key from text."""
+    def _generate_cache_key(text: str, namespace: str = "default") -> str:
+        """Generate unique cache key from text and namespace.
+
+        Namespaces keep results from different endpoints (e.g. public demo vs
+        authenticated analysis) separate, even when the manuscript text matches.
+        """
         normalized = text.strip().lower()
         text_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-        return f"{AIResultCache.KEY_PREFIX}:{text_hash}"
+        return f"{AIResultCache.KEY_PREFIX}:{namespace}:{text_hash}"
 
     @staticmethod
-    def get_cached_result(text: str) -> Optional[Dict[str, Any]]:
-        """Retrieve cached result."""
-        cache_key = AIResultCache._generate_cache_key(text)
+    def get_cached_result(text: str, namespace: str = "default") -> Optional[Dict[str, Any]]:
+        """Retrieve cached result for a namespace."""
+        cache_key = AIResultCache._generate_cache_key(text, namespace)
 
         try:
             if REDIS_AVAILABLE and redis_client:
@@ -85,9 +89,14 @@ class AIResultCache:
             return None
 
     @staticmethod
-    def cache_result(text: str, result: Dict[str, Any], ttl: Optional[int] = None) -> bool:
-        """Cache analysis result."""
-        cache_key = AIResultCache._generate_cache_key(text)
+    def cache_result(
+        text: str,
+        result: Dict[str, Any],
+        ttl: Optional[int] = None,
+        namespace: str = "default",
+    ) -> bool:
+        """Cache analysis result for a namespace."""
+        cache_key = AIResultCache._generate_cache_key(text, namespace)
         ttl = ttl or AIResultCache.DEFAULT_TTL
 
         try:

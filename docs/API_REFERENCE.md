@@ -230,6 +230,28 @@ Or:
 
 ---
 
+### Analysis Status
+
+Poll a background analysis using the `task_id` returned by `POST /api/v1/analysis/pre-review`.
+
+**Endpoint:** `GET /api/v1/analysis/status/{task_id}`
+
+**Authentication:** Required
+
+While the task is queued or running, the response contains a `status` field:
+
+```json
+{
+ "task_id": "abc123-def456",
+ "status": "PENDING",
+ "message": "Analysis in progress..."
+}
+```
+
+When the task completes, the response is the full analysis result (the same shape as the demo response), including `summary`, `keywords`, `language_quality`, and `metadata`. If the task failed, the response contains `"status": "FAILED"`.
+
+---
+
 ### Analysis History
 
 Get paginated history of user's analyses.

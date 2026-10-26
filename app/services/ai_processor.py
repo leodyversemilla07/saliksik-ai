@@ -1,8 +1,11 @@
-import os
+import logging
 from typing import Callable
 
 import spacy
 from nltk.tokenize import sent_tokenize
+from pypdf import PdfReader
+
+from app.core.config import settings
 
 try:
     from transformers import AutoTokenizer, pipeline
@@ -22,9 +25,6 @@ try:
     _TEXTSTAT_AVAILABLE = True
 except ImportError:
     _TEXTSTAT_AVAILABLE = False
-import logging
-
-from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,7 @@ MODEL_NAME = "sshleifer/distilbart-cnn-12-6"  # 306M params, ~600MB (was bart-la
 class ManuscriptPreReviewer:
     def __init__(self):
         # Light mode avoids heavy model loading (for tests/CI or constrained environments)
-        self.light_mode = os.getenv("AI_LIGHT_MODE", "0").lower() in (
-            "1",
-            "true",
-            "yes",
-        )
+        self.light_mode = settings.AI_LIGHT_MODE
 
         # Lazy-loaded components
         self._nlp = None

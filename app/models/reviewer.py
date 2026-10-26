@@ -60,8 +60,8 @@ class Reviewer(Base):
     max_assignments: Mapped[int] = mapped_column(Integer, default=5)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="reviewer_profile")
@@ -118,10 +118,10 @@ class ReviewerMatch(Base):
     )  # suggested, invited, accepted, declined, completed
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
-    invited_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    responded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     reviewer: Mapped["Reviewer"] = relationship("Reviewer", back_populates="matches")

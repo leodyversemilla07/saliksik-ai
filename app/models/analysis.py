@@ -53,7 +53,7 @@ class ManuscriptAnalysis(Base):
     task_id: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True, index=True)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     processing_time: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationships
@@ -87,7 +87,7 @@ class ProcessingError(Base):
     error_message: Mapped[str] = mapped_column(Text, nullable=False)
     input_type: Mapped[str] = mapped_column(String(10), default="text")
     input_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
 
     # Composite index for error analysis
     __table_args__ = (Index("ix_processing_errors_type_date", "error_type", "created_at"),)

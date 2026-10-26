@@ -135,7 +135,7 @@ def process_manuscript_task(self, analysis_id: int, text: str):
                 "cached": False,
             },
         }
-        AIResultCache.cache_result(text, cache_data)
+        AIResultCache.cache_result(text, cache_data, namespace="authenticated")
 
         logger.info(f"Analysis {analysis_id} completed in {processing_time:.2f}s")
 

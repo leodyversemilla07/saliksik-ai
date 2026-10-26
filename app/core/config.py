@@ -3,10 +3,10 @@ Application configuration using Pydantic Settings.
 """
 
 import json
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # CORS — override via env: ALLOWED_ORIGINS='["https://app.example.com"]'
     # or comma-separated: ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
-    ALLOWED_ORIGINS: List[str] = [
+    ALLOWED_ORIGINS: Annotated[List[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8000",

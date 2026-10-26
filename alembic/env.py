@@ -13,10 +13,10 @@ from alembic import context
 # Add project root to path so imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Import all models so Alembic sees them for autogenerate.
+import app.models  # noqa: E402,F401
 from app.core.config import settings
 from app.core.database import Base
-
-# Import all models so Alembic sees them for autogenerate
 
 # Alembic Config object
 config = context.config
