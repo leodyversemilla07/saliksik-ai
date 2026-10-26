@@ -85,9 +85,8 @@ uv venv
 # Install all dependencies (main + test + dev) in editable mode
 uv pip install -e ".[test,dev]"
 
-# Download NLP models
-uv run python -m spacy download en_core_web_sm
-uv run python -c "import nltk; nltk.download('punkt')"
+# Download NLTK tokenizer data
+uv run python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 
 # Configure
 cp .env.example .env  # Windows: copy .env.example .env
@@ -105,6 +104,10 @@ Then start the Celery worker in a second terminal (required for manuscript analy
 ```bash
 uv run celery -A app.celery_app.celery_app worker --loglevel=INFO --queues=analysis,default
 ```
+
+On the first analysis, the DistilBART summarization model (~600 MB) is downloaded from Hugging Face and
+cached under `~/.cache/huggingface`. For a faster, lower-memory setup that skips the transformer, set
+`AI_LIGHT_MODE=True` in `.env`.
 
 ### Local PostgreSQL and Redis (no Docker, no sudo)
 

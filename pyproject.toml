@@ -40,11 +40,12 @@ dependencies = [
 
     # AI/ML
     "spacy==3.8.7",
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "nltk==3.9.1",
     "transformers==4.57.1",
     "numpy==2.2.3",
     "pypdf==5.2.0",
-    "torch==2.5.1",
+    "torch==2.6.0",
     "yake==0.4.8",
     "textstat==0.7.3",
 
@@ -81,6 +82,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 target-version = "py312"

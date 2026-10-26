@@ -99,9 +99,8 @@ cd saliksik-ai
 uv python install 3.12
 uv sync --frozen
 
-# Download NLP models
-uv run python -m spacy download en_core_web_sm
-uv run python -c "import nltk; nltk.download('punkt')"
+# Download NLTK tokenizer data (the spaCy model is installed by uv sync)
+uv run python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 ```
 
 ---
