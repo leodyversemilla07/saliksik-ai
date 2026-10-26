@@ -2,6 +2,8 @@
 Tests for rate limiting functionality.
 """
 
+from unittest.mock import patch
+
 import pytest
 
 from app.core.rate_limit import InMemoryRateLimiter, parse_rate_limit
@@ -111,3 +113,16 @@ async def test_excluded_paths_no_rate_limit(client):
     # so it should not have rate limit headers
     # Note: depending on implementation, headers might still be present
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_exceeded_returns_429(client):
+    """Exhausted limits must return 429, not an unhandled 500."""
+    with patch("app.core.rate_limit.rate_limiter") as limiter:
+        limiter.is_allowed.return_value = (False, 0)
+        response = await client.get("/api/v1/info")
+
+    assert response.status_code == 429
+    assert response.json()["detail"] == "Rate limit exceeded. Please try again later."
+    assert response.headers["X-RateLimit-Remaining"] == "0"
+    assert "Retry-After" in response.headers

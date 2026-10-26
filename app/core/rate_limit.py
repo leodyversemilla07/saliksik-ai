@@ -7,7 +7,8 @@ import time
 from collections import defaultdict
 from typing import Tuple
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
@@ -193,9 +194,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         if not is_allowed:
             logger.warning(f"Rate limit exceeded for {client_id}")
-            raise HTTPException(
+            # Middleware runs outside FastAPI's exception handlers, so return
+            # a response directly instead of raising HTTPException (which
+            # would surface as a 500).
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded. Please try again later.",
+                content={"detail": "Rate limit exceeded. Please try again later."},
                 headers={
                     "X-RateLimit-Limit": str(max_requests),
                     "X-RateLimit-Remaining": "0",
