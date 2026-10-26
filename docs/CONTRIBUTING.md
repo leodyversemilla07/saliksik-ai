@@ -66,32 +66,32 @@ We pledge to make participation in this project a harassment-free experience for
 
 ## Development Setup
 
-### 1. Create Virtual Environment
+### 1. Install uv and Create a Virtual Environment
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate # Windows: .venv\Scripts\activate
+# Install uv: https://docs.astral.sh/uv/getting-started/installation/
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-# Install in editable mode with dev dependencies
-pip install -r requirements.txt
-# pip install -r requirements-dev.txt # If exists
+# Install in editable mode with test and development dependencies
+uv pip install -e ".[test,dev]"
 ```
 
 ### 3. Install AI Models
 
 ```bash
-python -m spacy download en_core_web_sm
-python -c "import nltk; nltk.download('punkt')"
+uv run python -m spacy download en_core_web_sm
+uv run python -c "import nltk; nltk.download('punkt')"
 ```
 
 ### 4. Setup Pre-commit Hooks (Optional)
 
 ```bash
-pip install pre-commit
+uv pip install pre-commit
 pre-commit install
 ```
 
@@ -101,19 +101,25 @@ This will automatically run formatters and linters before each commit.
 
 ```bash
 cp .env.example .env
-# Edit .env with your local database credentials
+# Edit .env with your local database URL and SECRET_KEY
 ```
 
 ### 6. Initialize Database
 
 ```bash
-python -c "from app.core.database import Base, engine; Base.metadata.create_all(bind=engine)"
+uv run alembic upgrade head
 ```
 
 ### 7. Run Development Server
 
 ```bash
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
+```
+
+Start the Celery worker in a second terminal so manuscript analysis jobs are processed:
+
+```bash
+uv run celery -A app.celery_app.celery_app worker --loglevel=INFO --queues=analysis,default
 ```
 
 ---

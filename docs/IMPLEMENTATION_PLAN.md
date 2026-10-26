@@ -157,7 +157,7 @@ All 4 enhancement features have been successfully implemented as of **2025-12-22
 
 | File | Changes |
 |------|---------|
-| `requirements.txt` | Added 4 new dependencies |
+| `pyproject.toml` | Added 4 new dependencies |
 | `app/core/config.py` | Feature flags, language settings, version 2.1.0 |
 | `app/api/v1/__init__.py` | Registered plagiarism and reviewers routers |
 | `app/schemas/analysis.py` | Added LanguageInfo, plagiarism, citation_analysis fields |

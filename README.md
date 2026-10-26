@@ -41,7 +41,6 @@ Saliksik AI streamlines the initial manuscript review process by automatically a
 
 - **Async Everything** — FastAPI + async SQLAlchemy + Celery task queue
 - **Auto-Generated Docs** — Interactive Swagger UI and ReDoc at `/docs`
-- **Docker Ready** — Docker Compose with PostgreSQL, Redis, and health checks
 - **CI/CD** — GitHub Actions with linting (ruff) and test coverage (pytest-cov)
 - **Security** — Hardened SECRET_KEY validation, input sanitization, rate limiting, security headers
 
@@ -72,28 +71,9 @@ The ML stack was chosen to maximize quality per megabyte. BART-large-cnn (1.5GB)
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Using uv (Recommended)
 
-```bash
-git clone https://github.com/leodyversemilla07/saliksik-ai.git
-cd saliksik-ai
-
-# Configure environment
-cp .env.example .env
-# Edit .env — set SECRET_KEY and POSTGRES_PASSWORD
-
-# Start all services
-docker-compose up -d --build
-
-# Access:
-# - Swagger UI:  http://localhost:8000/docs
-# - ReDoc:       http://localhost:8000/redoc
-# - Health:      http://localhost:8000/health
-```
-
-### Manual Setup (using uv)
-
-> **Prerequisite:** Install uv from https://docs.astral.sh/uv/getting-started/installation/
+> **Prerequisites:** Python 3.12+, PostgreSQL 15+, Redis 7+, and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
 git clone https://github.com/leodyversemilla07/saliksik-ai.git
@@ -111,11 +91,25 @@ uv run python -c "import nltk; nltk.download('punkt')"
 
 # Configure
 cp .env.example .env  # Windows: copy .env.example .env
-# Edit .env with your database credentials and SECRET_KEY
+# Edit .env with your database URL and SECRET_KEY
 
-# Start server (editable install makes `app` importable automatically)
+# Apply database migrations
+uv run alembic upgrade head
+
+# Terminal 1 — start the API
 uv run uvicorn main:app --reload
 ```
+
+Then start the Celery worker in a second terminal (required for manuscript analysis):
+
+```bash
+uv run celery -A app.celery_app.celery_app worker --loglevel=INFO --queues=analysis,default
+```
+
+Access:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+- Health: http://localhost:8000/health
 
 ---
 
@@ -125,7 +119,7 @@ uv run uvicorn main:app --reload
 
 - Python 3.12+
 - PostgreSQL 15+
-- Redis 7+ (optional, falls back to in-memory cache)
+- Redis 7+ (required for background analysis; optional for caching)
 
 ### Environment Variables
 
@@ -134,6 +128,7 @@ uv run uvicorn main:app --reload
 | `SECRET_KEY` | Yes | Min 32 chars. Generate: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `DATABASE_URL` | Yes | Async DB URL: `postgresql+asyncpg://user:pass@host:5432/dbname` |
 | `REDIS_URL` | No | Redis URL for caching. Falls back to in-memory if not set. |
+| `CELERY_BROKER_URL` | No | Redis broker for Celery. Defaults to `redis://localhost:6379/1`. |
 | `DEBUG` | No | Set `true` for development. Default: `false` |
 
 ---
@@ -183,7 +178,7 @@ saliksik-ai/
 ├── .github/workflows/    # CI pipeline
 ├── main.py               # FastAPI entry point
 ├── pyproject.toml        # Project metadata and dependencies
-├── docker-compose.yml    # Full stack orchestration
+├── uv.lock               # Locked dependency versions
 └── pytest.ini            # Test configuration
 ```
 

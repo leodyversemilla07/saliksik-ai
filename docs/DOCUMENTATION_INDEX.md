@@ -28,7 +28,6 @@ Complete documentation for Saliksik AI
 3. **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
  - System requirements
  - Environment setup
- - Docker deployment
  - Manual deployment
  - Nginx configuration
  - SSL/TLS setup

@@ -1,18 +1,22 @@
 # Deployment Guide
 
-Production deployment guide for Saliksik AI
+Production deployment guide for Saliksik AI using Python, uv, systemd, PostgreSQL, Redis, and Nginx.
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Environment Setup](#environment-setup)
-- [Docker Deployment](#docker-deployment)
-- [Manual Deployment](#manual-deployment)
+- [Server Preparation](#server-preparation)
+- [Application Setup](#application-setup)
+- [Environment Configuration](#environment-configuration)
+- [PostgreSQL Setup](#postgresql-setup)
+- [Database Migrations](#database-migrations)
+- [Systemd Services](#systemd-services)
 - [Nginx Configuration](#nginx-configuration)
 - [SSL/TLS Setup](#ssltls-setup)
 - [Monitoring](#monitoring)
 - [Backup Strategy](#backup-strategy)
 - [Troubleshooting](#troubleshooting)
+- [Production Checklist](#production-checklist)
 
 ---
 
@@ -34,277 +38,329 @@ Production deployment guide for Saliksik AI
 
 ### Software Requirements
 
-- Docker 24+ & Docker Compose 2.20+
+- Linux server with `systemd`
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - PostgreSQL 15+
 - Redis 7+
-- Nginx 1.24+ (for reverse proxy)
-- Python 3.12+ (for manual deployment)
+- Nginx 1.24+ (optional, for reverse proxy and TLS)
+- Git
+
+> Redis is required for the Celery task queue. The cache layer also uses Redis but falls back to an in-memory cache when `REDIS_URL` is not set.
 
 ---
 
-## Environment Setup
-
-### 1. Create Production Environment File
+## Server Preparation
 
 ```bash
-cp .env.example .env.production
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install system dependencies
+sudo apt install -y postgresql redis-server nginx git curl
+
+# Start and enable services
+sudo systemctl enable --now postgresql redis-server
 ```
 
-### 2. Configure Production Variables
+### Create Application User
 
-Edit `.env.production`:
+```bash
+sudo useradd --create-home --shell /bin/bash saliksik
+sudo su - saliksik
+```
+
+---
+
+## Application Setup
+
+Run the remaining commands as the `saliksik` user.
+
+### 1. Install uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+The installer normally adds `$HOME/.local/bin` to your shell profile. Verify with:
+
+```bash
+uv --version
+```
+
+### 2. Clone and Install
+
+```bash
+git clone https://github.com/leodyversemilla07/saliksik-ai.git
+cd saliksik-ai
+
+# Install the project's Python version and locked dependencies
+uv python install 3.12
+uv sync --frozen
+
+# Download NLP models
+uv run python -m spacy download en_core_web_sm
+uv run python -c "import nltk; nltk.download('punkt')"
+```
+
+---
+
+## Environment Configuration
+
+### 1. Create the Environment File
+
+```bash
+cd /home/saliksik/saliksik-ai
+cp .env.example .env
+chmod 600 .env
+```
+
+### 2. Configure Production Values
+
+Edit `.env`:
 
 ```bash
 # Application
 DEBUG=False
-SECRET_KEY=<generate-strong-random-key-here>
-ALLOWED_ORIGINS=https://your-domain.com,https://api.your-domain.com
+SECRET_KEY=<generate-a-strong-random-key>
 
-# Database
-DATABASE_URL=postgresql://saliksik:secure_password@db:5432/saliksik_ai_prod
+# Comma-separated list of allowed frontend origins
+ALLOWED_ORIGINS=https://your-domain.com,https://app.your-domain.com
 
-# Redis
-REDIS_URL=redis://redis:6379/0
+# Database (async driver required)
+DATABASE_URL=postgresql+asyncpg://saliksik_user:secure_password@localhost:5432/saliksik_ai_prod
 
-# Celery
-CELERY_BROKER_URL=redis://redis:6379/1
-CELERY_RESULT_BACKEND=redis://redis:6379/1
+# Redis cache (database 0)
+REDIS_URL=redis://localhost:6379/0
 
-# Security
+# Celery broker and result backend (database 1)
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+
+# Uploads and rate limits
 MAX_FILE_SIZE_MB=10
-API_RATE_LIMIT=100/hour
-
-# PostgreSQL
-POSTGRES_DB=saliksik_ai_prod
-POSTGRES_USER=saliksik
-POSTGRES_PASSWORD=<strong-database-password>
+RATE_LIMIT_ANON=60/hour
+RATE_LIMIT_USER=100/hour
 ```
 
-### 3. Generate Secret Key
+Notes:
+
+- `DATABASE_URL` must use `postgresql+asyncpg://` because the API uses an async SQLAlchemy engine. The sync URL used by Celery and Alembic is derived automatically.
+- Set `SMTP_*` values if you want email verification messages delivered.
+- Keep `.env` readable only by the application user (`chmod 600 .env`).
+
+### 3. Generate a Secret Key
 
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Copy the output into `SECRET_KEY`. It must be at least 32 characters.
+
+> The systemd services read `.env` with `EnvironmentFile=`, so use one `KEY=value` pair per line and avoid inline comments after values.
+
+---
+
+## PostgreSQL Setup
+
+Create the production database and user:
+
+```bash
+sudo -u postgres psql <<'SQL'
+CREATE USER saliksik_user WITH PASSWORD 'secure_password';
+CREATE DATABASE saliksik_ai_prod OWNER saliksik_user;
+SQL
+```
+
+Replace `secure_password` with a strong password, and use the same password in `DATABASE_URL`.
+
+Verify the connection:
+
+```bash
+psql "postgresql://saliksik_user:secure_password@localhost:5432/saliksik_ai_prod" -c "SELECT 1;"
 ```
 
 ---
 
-## Docker Deployment
+## Database Migrations
 
-### 1. Clone Repository
+Apply the Alembic migrations as the application user:
 
 ```bash
-git clone https://github.com/yourusername/saliksik-ai.git
-cd saliksik-ai
+cd /home/saliksik/saliksik-ai
+uv run alembic upgrade head
 ```
 
-### 2. Configure Environment
+The API also creates any missing tables at startup, but running migrations explicitly is recommended for production.
+
+### Create an Initial Admin User (Optional)
 
 ```bash
-cp .env.example .env
-# Edit .env with production values
-```
-
-### 3. Build and Start Services
-
-```bash
-docker-compose up -d --build
-```
-
-### 4. Verify Deployment
-
-```bash
-# Check running containers
-docker-compose ps
-
-# View logs
-docker-compose logs -f web
-
-# Test health endpoint
-curl http://localhost:8000/health
-```
-
-### 5. Create Initial Admin User (Optional)
-
-```bash
-docker-compose exec web python -c "
+cd /home/saliksik/saliksik-ai
+uv run python - <<'PY'
 from app.core.database import SessionLocal
-from app.models.user import User
 from app.core.security import get_password_hash
+from app.models.user import User
 
 db = SessionLocal()
-admin = User(
- username='admin',
- email='admin@yourdomain.com',
- hashed_password=get_password_hash('your-admin-password')
-)
-db.add(admin)
-db.commit()
-print('Admin user created')
-"
+try:
+    admin = User(
+        username="admin",
+        email="admin@your-domain.com",
+        hashed_password=get_password_hash("change-this-password"),
+        role="admin",
+        is_active=True,
+        is_email_verified=True,
+    )
+    db.add(admin)
+    db.commit()
+    print("Admin user created")
+finally:
+    db.close()
+PY
 ```
 
 ---
 
-## Manual Deployment
+## Systemd Services
 
-### 1. System Preparation
+The application needs two long-running services: the FastAPI API and a Celery worker that processes analysis jobs.
 
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install dependencies
-sudo apt install -y python3.12 python3.12-venv python3-pip \
- postgresql-15 redis-server nginx git
-```
-
-### 2. Create Application User
-
-```bash
-sudo useradd -m -s /bin/bash saliksik
-sudo su - saliksik
-```
-
-### 3. Setup Application
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/saliksik-ai.git
-cd saliksik-ai
-
-# Create virtual environment
-python3.12 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Download AI models
-python -m spacy download en_core_web_sm
-python -c "import nltk; nltk.download('punkt')"
-```
-
-### 4. Configure PostgreSQL
-
-```bash
-# Switch to postgres user
-sudo su - postgres
-
-# Create database and user
-createdb saliksik_ai_prod
-createuser saliksik_user
-psql -c "ALTER USER saliksik_user WITH PASSWORD 'secure_password';"
-psql -c "GRANT ALL PRIVILEGES ON DATABASE saliksik_ai_prod TO saliksik_user;"
-
-# Exit postgres user
-exit
-```
-
-### 5. Initialize Database
-
-```bash
-# As saliksik user
-cd ~/saliksik-ai
-source .venv/bin/activate
-
-python -c "from app.core.database import Base, engine; Base.metadata.create_all(bind=engine)"
-```
-
-### 6. Create Systemd Service
+### 1. API Service
 
 Create `/etc/systemd/system/saliksik-ai.service`:
 
 ```ini
 [Unit]
 Description=Saliksik AI FastAPI Application
-After=network.target postgresql.service redis.service
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target postgresql.service redis-server.service
 
 [Service]
-Type=notify
+Type=simple
 User=saliksik
 Group=saliksik
 WorkingDirectory=/home/saliksik/saliksik-ai
-Environment="PATH=/home/saliksik/saliksik-ai/.venv/bin"
+Environment="PATH=/home/saliksik/saliksik-ai/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 EnvironmentFile=/home/saliksik/saliksik-ai/.env
-ExecStart=/home/saliksik/saliksik-ai/.venv/bin/gunicorn main:app \
- --workers 4 \
- --worker-class uvicorn.workers.UvicornWorker \
- --bind 127.0.0.1:8000 \
- --access-logfile /var/log/saliksik-ai/access.log \
- --error-logfile /var/log/saliksik-ai/error.log
+ExecStart=/home/saliksik/saliksik-ai/.venv/bin/uvicorn main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 4 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1
 Restart=always
 RestartSec=10
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-### 7. Start Service
+### 2. Celery Worker Service
+
+Create `/etc/systemd/system/saliksik-worker.service`:
+
+```ini
+[Unit]
+Description=Saliksik AI Celery Worker
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=saliksik
+Group=saliksik
+WorkingDirectory=/home/saliksik/saliksik-ai
+Environment="PATH=/home/saliksik/saliksik-ai/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/saliksik/saliksik-ai/.env
+ExecStart=/home/saliksik/saliksik-ai/.venv/bin/celery \
+    -A app.celery_app.celery_app \
+    worker \
+    --loglevel=INFO \
+    --queues=analysis,default \
+    --concurrency=2
+Restart=always
+RestartSec=10
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3. Start the Services
 
 ```bash
-# Create log directory
-sudo mkdir -p /var/log/saliksik-ai
-sudo chown saliksik:saliksik /var/log/saliksik-ai
-
-# Enable and start service
 sudo systemctl daemon-reload
-sudo systemctl enable saliksik-ai
-sudo systemctl start saliksik-ai
+sudo systemctl enable --now saliksik-ai saliksik-worker
 
 # Check status
 sudo systemctl status saliksik-ai
+sudo systemctl status saliksik-worker
+
+# Verify the API
+curl http://127.0.0.1:8000/health
+```
+
+If the API starts but analysis jobs stay in `PENDING`, check the worker logs:
+
+```bash
+sudo journalctl -u saliksik-worker -n 100 --no-pager
 ```
 
 ---
 
 ## Nginx Configuration
 
-### 1. Create Nginx Config
+### 1. Configure the Rate-Limit Zone
+
+`limit_req_zone` must be defined in the Nginx `http` context. Create `/etc/nginx/conf.d/saliksik-rate-limit.conf`:
+
+```nginx
+limit_req_zone $binary_remote_addr zone=saliksik_api:10m rate=10r/s;
+```
+
+### 2. Create the Site Configuration
 
 Create `/etc/nginx/sites-available/saliksik-ai`:
 
 ```nginx
 server {
- listen 80;
- server_name api.yourdomain.com;
+    listen 80;
+    server_name api.yourdomain.com;
 
- # Rate limiting
- limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
- limit_req zone=api_limit burst=20 nodelay;
+    client_max_body_size 10M;
 
- # Client body size
- client_max_body_size 10M;
+    access_log /var/log/nginx/saliksik-ai-access.log;
+    error_log /var/log/nginx/saliksik-ai-error.log;
 
- # Logging
- access_log /var/log/nginx/saliksik-ai-access.log;
- error_log /var/log/nginx/saliksik-ai-error.log;
+    location / {
+        limit_req zone=saliksik_api burst=20 nodelay;
 
- location / {
- proxy_pass http://127.0.0.1:8000;
- proxy_set_header Host $host;
- proxy_set_header X-Real-IP $remote_addr;
- proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
- proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
 
- # Timeouts
- proxy_connect_timeout 300s;
- proxy_send_timeout 300s;
- proxy_read_timeout 300s;
+        # AI analysis requests can take several minutes
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
 
- # WebSocket support (if needed)
- proxy_http_version 1.1;
- proxy_set_header Upgrade $http_upgrade;
- proxy_set_header Connection "upgrade";
- }
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
 
- # Security headers
- add_header X-Frame-Options "SAMEORIGIN" always;
- add_header X-Content-Type-Options "nosniff" always;
- add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
 }
 ```
 
-### 2. Enable Site
+### 3. Enable the Site
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/saliksik-ai /etc/nginx/sites-enabled/
@@ -319,42 +375,35 @@ sudo systemctl reload nginx
 ### Using Let's Encrypt (Certbot)
 
 ```bash
-# Install Certbot
 sudo apt install -y certbot python3-certbot-nginx
-
-# Get certificate
 sudo certbot --nginx -d api.yourdomain.com
-
-# Auto-renewal (already configured with certbot)
 sudo certbot renew --dry-run
 ```
 
 ### Manual SSL Configuration
 
-Update Nginx config:
+Update the Nginx server block:
 
 ```nginx
 server {
- listen 443 ssl http2;
- server_name api.yourdomain.com;
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
 
- ssl_certificate /path/to/fullchain.pem;
- ssl_certificate_key /path/to/privkey.pem;
- ssl_protocols TLSv1.2 TLSv1.3;
- ssl_ciphers HIGH:!aNULL:!MD5;
- ssl_prefer_server_ciphers on;
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
 
- # HSTS
- add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
- # ... rest of configuration
+    # ... rest of the location configuration
 }
 
-# Redirect HTTP to HTTPS
 server {
- listen 80;
- server_name api.yourdomain.com;
- return 301 https://$server_name$request_uri;
+    listen 80;
+    server_name api.yourdomain.com;
+    return 301 https://$server_name$request_uri;
 }
 ```
 
@@ -362,86 +411,118 @@ server {
 
 ## Monitoring
 
-### 1. Application Logs
+### Application Logs
 
 ```bash
-# Systemd service logs
+# API service logs
 sudo journalctl -u saliksik-ai -f
 
-# Application logs
-tail -f /var/log/saliksik-ai/error.log
+# Celery worker logs
+sudo journalctl -u saliksik-worker -f
 
 # Nginx logs
 tail -f /var/log/nginx/saliksik-ai-access.log
 ```
 
-### 2. Health Monitoring
+### Health Checks
 
 ```bash
-# Create health check script
-cat > /usr/local/bin/check-saliksik.sh << 'EOF'
-#!/bin/bash
-response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
-if [ $response != "200" ]; then
- echo "Health check failed with status $response"
- sudo systemctl restart saliksik-ai
-fi
-EOF
+# API health endpoint
+curl -s http://localhost:8000/health
 
-chmod +x /usr/local/bin/check-saliksik.sh
+# PostgreSQL
+sudo systemctl status postgresql
 
-# Add to crontab
-crontab -e
-# Add: */5 * * * * /usr/local/bin/check-saliksik.sh
+# Redis
+redis-cli ping
+
+# Celery worker
+sudo -u saliksik bash -lc \
+  'cd ~/saliksik-ai && .venv/bin/celery -A app.celery_app.celery_app inspect ping'
 ```
 
-### 3. Resource Monitoring
+Create a simple API health-check script at `/usr/local/bin/check-saliksik.sh`:
 
 ```bash
-# Install monitoring tools
-sudo apt install -y htop iotop nethogs
+#!/bin/bash
+response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+if [ "$response" != "200" ]; then
+    echo "Health check failed with status $response"
+    systemctl restart saliksik-ai
+fi
+```
 
-# Monitor processes
+```bash
+sudo chmod +x /usr/local/bin/check-saliksik.sh
+```
+
+Add it to root's crontab (the script restarts the service, so it needs root privileges):
+
+```bash
+sudo crontab -e
+```
+
+```cron
+*/5 * * * * /usr/local/bin/check-saliksik.sh
+```
+
+### Resource Monitoring
+
+```bash
+sudo apt install -y htop iotop
 htop
+```
 
-# Monitor Docker resources (if using Docker)
-docker stats
+Also monitor disk usage and Redis memory:
+
+```bash
+df -h
+redis-cli info memory
 ```
 
 ---
 
 ## Backup Strategy
 
-### 1. Database Backup
+### Database Backup
+
+Create `/usr/local/bin/backup-saliksik-db.sh`:
 
 ```bash
-# Create backup script
-cat > /usr/local/bin/backup-saliksik-db.sh << 'EOF'
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/var/backups/saliksik-ai"
-mkdir -p $BACKUP_DIR
+mkdir -p "$BACKUP_DIR"
 
-pg_dump -U saliksik_user saliksik_ai_prod | \
- gzip > $BACKUP_DIR/db_backup_$DATE.sql.gz
+pg_dump -h localhost -U saliksik_user saliksik_ai_prod | \
+    gzip > "$BACKUP_DIR/db_backup_$DATE.sql.gz"
 
-# Keep only last 30 days
-find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +30 -delete
-EOF
-
-chmod +x /usr/local/bin/backup-saliksik-db.sh
-
-# Schedule daily backups
-crontab -e
-# Add: 0 2 * * * /usr/local/bin/backup-saliksik-db.sh
+# Keep the last 30 days
+find "$BACKUP_DIR" -name "db_backup_*.sql.gz" -mtime +30 -delete
 ```
 
-### 2. Restore Database
+```bash
+sudo chmod +x /usr/local/bin/backup-saliksik-db.sh
+```
+
+Configure a `~/.pgpass` entry for the account running the backup so `pg_dump` can connect without a password prompt, then schedule daily backups from root's crontab:
+
+```bash
+sudo crontab -e
+```
+
+```cron
+0 2 * * * /usr/local/bin/backup-saliksik-db.sh
+```
+
+### Restore Database
 
 ```bash
 gunzip < /var/backups/saliksik-ai/db_backup_YYYYMMDD_HHMMSS.sql.gz | \
- psql -U saliksik_user saliksik_ai_prod
+    psql -h localhost -U saliksik_user saliksik_ai_prod
 ```
+
+Redis stores cache data and queued tasks, not the source of truth. No Redis backup is required for normal operations.
 
 ---
 
@@ -450,50 +531,66 @@ gunzip < /var/backups/saliksik-ai/db_backup_YYYYMMDD_HHMMSS.sql.gz | \
 ### Service Won't Start
 
 ```bash
-# Check service status
-sudo systemctl status saliksik-ai
-
-# View recent logs
-sudo journalctl -u saliksik-ai -n 50
-
-# Check port availability
+sudo systemctl status saliksik-ai -l
+sudo journalctl -u saliksik-ai -n 100 --no-pager
 sudo lsof -i :8000
 ```
+
+Common causes are an invalid `SECRET_KEY`, an unreachable database, or a malformed `.env` entry.
 
 ### Database Connection Issues
 
 ```bash
-# Test database connection
-psql -U saliksik_user -d saliksik_ai_prod -h localhost
-
-# Check PostgreSQL status
+psql "postgresql://saliksik_user:secure_password@localhost:5432/saliksik_ai_prod" -c "SELECT 1;"
 sudo systemctl status postgresql
-
-# View PostgreSQL logs
 sudo tail -f /var/log/postgresql/postgresql-15-main.log
 ```
 
+The log filename may use a different PostgreSQL major version.
+
+### Analysis Jobs Stay PENDING
+
+```bash
+sudo systemctl status saliksik-worker
+sudo journalctl -u saliksik-worker -n 100 --no-pager
+redis-cli ping
+redis-cli -n 1 LLEN analysis
+```
+
+If the queue is growing, increase `--concurrency` in the worker service or add another worker instance.
+
 ### High Memory Usage
 
-```bash
-# Restart service
-sudo systemctl restart saliksik-ai
+Reduce the API worker count in `saliksik-ai.service`:
 
-# Reduce workers in systemd service
-# Edit: --workers 2 (instead of 4)
+```ini
+ExecStart=/home/saliksik/saliksik-ai/.venv/bin/uvicorn main:app \
+    --host 127.0.0.1 --port 8000 --workers 2
+```
+
+Reduce Celery concurrency in `saliksik-worker.service`:
+
+```ini
+ExecStart=/home/saliksik/saliksik-ai/.venv/bin/celery \
+    -A app.celery_app.celery_app worker \
+    --loglevel=INFO --queues=analysis,default --concurrency=1
+```
+
+Then reload and restart:
+
+```bash
 sudo systemctl daemon-reload
-sudo systemctl restart saliksik-ai
+sudo systemctl restart saliksik-ai saliksik-worker
 ```
 
-### Clear Cache
+### Clear the Cache
 
 ```bash
-# Using Docker
-docker-compose exec redis redis-cli FLUSHALL
-
-# Manual
-redis-cli FLUSHALL
+# Clear the application cache (Redis database 0)
+redis-cli -n 0 FLUSHDB
 ```
+
+Do not use `FLUSHALL` unless you intentionally want to clear the Celery queue and results in database 1 as well.
 
 ---
 
@@ -501,28 +598,33 @@ redis-cli FLUSHALL
 
 Before going live:
 
-- [ ] `DEBUG=False` in environment
+- [ ] `DEBUG=False` in `.env`
 - [ ] Strong `SECRET_KEY` configured
 - [ ] Database password changed
+- [ ] `.env` permissions set to `600`
+- [ ] PostgreSQL running and reachable
+- [ ] Redis running
+- [ ] `uv run alembic upgrade head` completed
+- [ ] `saliksik-ai` service running
+- [ ] `saliksik-worker` service running
 - [ ] SSL/TLS certificates installed
-- [ ] Firewall configured (allow 80, 443)
+- [ ] Firewall configured (allow 22, 80, 443)
 - [ ] Database backups scheduled
 - [ ] Log rotation configured
-- [ ] Monitoring setup
-- [ ] Health checks configured
+- [ ] Monitoring and health checks configured
 - [ ] Rate limiting enabled
-- [ ] CORS properly configured
+- [ ] CORS origins restricted to trusted frontends
 - [ ] Admin user created
-- [ ] API documentation accessible
-- [ ] Security headers configured
-- [ ] Error tracking setup (Sentry, etc.)
+- [ ] API documentation access reviewed
+- [ ] Security headers verified
+- [ ] Error tracking configured (Sentry, etc.)
 
 ---
 
 ## Support
 
 For deployment issues:
-- Check logs first
+
+- Check the service logs first
 - Review this guide
-- Check [GitHub Issues](https://github.com/yourusername/saliksik-ai/issues)
-- Contact support
+- Open an issue at [GitHub Issues](https://github.com/leodyversemilla07/saliksik-ai/issues)

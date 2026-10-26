@@ -141,15 +141,6 @@ dmypy.json
 /uploads/
 
 # ============================================
-# Docker
-# ============================================
-# Docker volumes (persisted data)
-postgres_data/
-redis_data/
-static_volume/
-media_volume/
-
-# ============================================
 # IDEs & Editors
 # ============================================
 # VS Code

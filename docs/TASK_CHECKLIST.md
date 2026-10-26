@@ -8,7 +8,7 @@
 
 ### Setup
 - [x] Create feature branch `feature/plagiarism-detection`
-- [x] Add dependencies to `requirements.txt` (datasketch, xxhash)
+- [x] Add dependencies to `pyproject.toml` (datasketch, xxhash)
 - [x] Install dependencies locally
 
 ### Implementation
@@ -80,7 +80,7 @@
 ## Phase 3: Reviewer Matching (v2.1.0) ✅
 
 ### Setup
-- [x] Add `sentence-transformers` to `requirements.txt`
+- [x] Add `sentence-transformers` to `pyproject.toml`
 - [x] Install dependencies locally
 
 ### Implementation
@@ -132,7 +132,7 @@
 ## Phase 4: Multi-Language Support (v2.1.0) ✅
 
 ### Setup
-- [x] Add `langdetect` to `requirements.txt`
+- [x] Add `langdetect` to `pyproject.toml`
 - [x] Install dependencies locally
 
 ### Implementation

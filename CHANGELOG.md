@@ -74,7 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redis-based caching with 40-100x speedup on repeated queries
 - JWT-based authentication for editorial staff and reviewers
 - Async processing with Celery task queue
-- Docker containerization with Docker Compose orchestration
 - PostgreSQL database with connection pooling and indexing
 - Rate limiting and input validation
 - Structured logging with request ID tracking
