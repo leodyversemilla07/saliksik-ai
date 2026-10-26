@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     LargeBinary,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,9 +40,7 @@ class Reviewer(Base):
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
-        index=True,
     )
 
     # Expertise information
@@ -70,7 +69,10 @@ class Reviewer(Base):
     )
 
     # Composite index for finding available reviewers
-    __table_args__ = (Index("ix_reviewers_available_assignments", "is_available", "current_assignments"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", name="reviewers_user_id_key"),
+        Index("ix_reviewers_available_assignments", "is_available", "current_assignments"),
+    )
 
     def __repr__(self):
         return f"<Reviewer(id={self.id}, user_id={self.user_id})>"

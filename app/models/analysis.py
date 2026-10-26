@@ -83,7 +83,7 @@ class ProcessingError(Base):
     __tablename__ = "processing_errors"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    error_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    error_type: Mapped[str] = mapped_column(String(100), nullable=False)
     error_message: Mapped[str] = mapped_column(Text, nullable=False)
     input_type: Mapped[str] = mapped_column(String(10), default="text")
     input_size: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -34,9 +34,7 @@ class DocumentFingerprint(Base):
     analysis_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("manuscript_analyses.id", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
-        index=True,
     )
 
     # Serialized MinHash object
@@ -47,6 +45,8 @@ class DocumentFingerprint(Base):
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+    __table_args__ = (UniqueConstraint("analysis_id", name="document_fingerprints_analysis_id_key"),)
 
     # Relationship to the analysis
     analysis: Mapped["ManuscriptAnalysis"] = relationship(
