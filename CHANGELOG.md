@@ -62,6 +62,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error headers, log hygiene, plagiarism thresholds/tenant isolation and reviewer matching.
 - Alembic revision `007_analysis_enhancements` adding the `language_info` and
   `plagiarism_result` columns.
+- Alembic revision `008_user_institution` adding the author affiliation used for reviewer
+  conflict-of-interest checks.
+- `PUT /api/v1/auth/profile` to set the account affiliation, and an optional `institution`
+  field on registration and in the user response.
+- Reviewer assignments now fail with `409 Conflict` when the reviewer shares the author's
+  institution, and such reviewers are filtered out of the suggestions.
+- Reviewers that reached their assignment limit are no longer suggested.
 
 ## [2.1.0] - 2025-12-22
 

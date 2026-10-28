@@ -283,8 +283,12 @@ async def get_reviewer_suggestions(
             detail="Reviewer matching is disabled",
         )
 
-    # Get the analysis
-    stmt = select(ManuscriptAnalysis).filter(ManuscriptAnalysis.id == analysis_id)
+    # Get the analysis (the author is eager loaded for the conflict check)
+    stmt = (
+        select(ManuscriptAnalysis)
+        .options(selectinload(ManuscriptAnalysis.user))
+        .filter(ManuscriptAnalysis.id == analysis_id)
+    )
     result = await db.execute(stmt)
     analysis = result.scalar_one_or_none()
 
@@ -312,6 +316,22 @@ async def get_reviewer_suggestions(
         min_score=min_score,
         exclude_user_ids=[current_user.id],  # Exclude manuscript author
     )
+
+    # Drop reviewers that would create a conflict of interest (for example a
+    # reviewer from the author's own institution).
+    author_institution = analysis.user.institution if analysis.user else None
+    if author_institution:
+        conflict_free = []
+        for suggestion in suggestions:
+            has_conflict, _reasons = matcher.check_conflict_of_interest(
+                manuscript_user_id=analysis.user_id,
+                reviewer_user_id=suggestion.user_id,
+                manuscript_institution=author_institution,
+                reviewer_institution=suggestion.institution,
+            )
+            if not has_conflict:
+                conflict_free.append(suggestion)
+        suggestions = conflict_free
 
     # Count available reviewers
     count_stmt = (
@@ -356,8 +376,12 @@ async def assign_reviewer(
     """
     Assign a reviewer to a manuscript analysis.
     """
-    # Get the analysis
-    stmt = select(ManuscriptAnalysis).filter(ManuscriptAnalysis.id == analysis_id)
+    # Get the analysis (the author is eager loaded for the conflict check)
+    stmt = (
+        select(ManuscriptAnalysis)
+        .options(selectinload(ManuscriptAnalysis.user))
+        .filter(ManuscriptAnalysis.id == analysis_id)
+    )
     result = await db.execute(stmt)
     analysis = result.scalar_one_or_none()
 
@@ -391,6 +415,20 @@ async def assign_reviewer(
             detail="The manuscript author cannot be assigned as a reviewer",
         )
 
+    # Reject assignments that would create a conflict of interest.
+    matcher = get_reviewer_matcher()
+    has_conflict, conflict_reasons = matcher.check_conflict_of_interest(
+        manuscript_user_id=analysis.user_id,
+        reviewer_user_id=reviewer.user_id,
+        manuscript_institution=analysis.user.institution if analysis.user else None,
+        reviewer_institution=reviewer.institution,
+    )
+    if has_conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Conflict of interest: " + "; ".join(conflict_reasons),
+        )
+
     # Check if already assigned
     stmt = select(ReviewerMatch).filter(
         ReviewerMatch.analysis_id == analysis_id,
@@ -407,7 +445,6 @@ async def assign_reviewer(
 
     try:
         # Calculate match score
-        matcher = get_reviewer_matcher()
         keyword_score, matched_keywords = matcher.calculate_keyword_similarity(
             analysis.keywords or [],
             reviewer.expertise_keywords or [],

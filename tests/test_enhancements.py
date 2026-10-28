@@ -460,6 +460,62 @@ async def test_author_cannot_be_assigned_as_own_reviewer(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_reviewer_from_the_same_institution_is_rejected(client, db_session, real_reviewer_matcher):
+    author = User(
+        username="coiauthor",
+        email="coiauthor@example.com",
+        hashed_password=get_password_hash("password123"),
+        institution="Example University",
+        is_active=True,
+        is_email_verified=True,
+    )
+    reviewer_user = User(
+        username="coireviewer",
+        email="coireviewer@example.com",
+        hashed_password=get_password_hash("password123"),
+        institution="example university",
+        is_active=True,
+        is_email_verified=True,
+    )
+    db_session.add_all([author, reviewer_user])
+    await db_session.commit()
+
+    reviewer = Reviewer(
+        user_id=reviewer_user.id,
+        expertise_keywords=["science"],
+        institution="Example University",
+        is_available=True,
+        current_assignments=0,
+        max_assignments=5,
+    )
+    analysis = ManuscriptAnalysis(
+        user_id=author.id,
+        input_type="text",
+        manuscript_text="body",
+        status="COMPLETED",
+        summary="summary",
+        keywords=["science"],
+        language_quality={},
+    )
+    db_session.add_all([reviewer, analysis])
+    await db_session.commit()
+
+    token = await _login(client, "coiauthor")
+
+    # Use the real matcher implementation for the conflict check.
+    matcher = real_reviewer_matcher.ReviewerMatcher()
+    with patch("app.api.v1.reviewers.get_reviewer_matcher", return_value=matcher):
+        response = await client.post(
+            f"/api/v1/reviewers/analysis/{analysis.id}/assign/{reviewer.id}",
+            json={"send_invitation": False},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 409
+    assert "institution" in response.json()["error"]["message"].lower()
+
+
+@pytest.mark.asyncio
 async def test_assignment_status_transitions_are_enforced(client, db_session):
     reviewer_user = User(
         username="transitionreviewer",

@@ -25,6 +25,9 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     api_key: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
     role: Mapped[str] = mapped_column(String, default="user", index=True, nullable=False)
+    # Affiliation of the account holder. Used for reviewer conflict-of-interest
+    # checks (a reviewer from the same institution cannot review the work).
+    institution: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verification_token: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)

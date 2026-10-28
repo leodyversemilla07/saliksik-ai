@@ -239,8 +239,13 @@ class ReviewerMatcher:
         exclude_user_ids = exclude_user_ids or []
         suggestions = []
 
-        # Query available reviewers (async)
-        stmt = select(Reviewer).options(selectinload(Reviewer.user)).filter(Reviewer.is_available)
+        # Query available reviewers (async). Reviewers that reached their
+        # assignment limit are not suggested.
+        stmt = (
+            select(Reviewer)
+            .options(selectinload(Reviewer.user))
+            .filter(Reviewer.is_available, Reviewer.current_assignments < Reviewer.max_assignments)
+        )
 
         if exclude_user_ids:
             stmt = stmt.filter(Reviewer.user_id.notin_(exclude_user_ids))
@@ -309,7 +314,7 @@ class ReviewerMatcher:
 
     def check_conflict_of_interest(
         self,
-        manuscript_user_id: int,
+        manuscript_user_id: Optional[int],
         reviewer_user_id: int,
         manuscript_institution: Optional[str] = None,
         reviewer_institution: Optional[str] = None,
@@ -323,7 +328,7 @@ class ReviewerMatcher:
         conflicts = []
 
         # Same user
-        if manuscript_user_id == reviewer_user_id:
+        if manuscript_user_id is not None and manuscript_user_id == reviewer_user_id:
             conflicts.append("Reviewer is the manuscript author")
 
         # Same institution (if provided)

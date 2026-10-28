@@ -44,6 +44,7 @@ from app.schemas.user import (
     RefreshTokenResponse,
     ResendVerificationResponse,
     TokenResponse,
+    UserProfileUpdate,
     UserRegister,
     UserResponse,
     VerifyEmailResponse,
@@ -188,6 +189,7 @@ async def register(user_data: UserRegister, db: DbSession):
         username=clean_username,
         email=clean_email,
         hashed_password=hashed_password,
+        institution=sanitize_string(user_data.institution, max_length=255) if user_data.institution else None,
         is_email_verified=False,
     )
 
@@ -287,6 +289,25 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
 @router.get("/profile", response_model=UserResponse)
 async def get_profile(current_user: CurrentUser):
     """Get current user profile."""
+    return UserResponse.model_validate(current_user)
+
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(request: UserProfileUpdate, current_user: CurrentUser, db: DbSession):
+    """
+    Update the current user profile.
+
+    Only the affiliation is editable: it is used to detect reviewer conflicts
+    of interest (a reviewer from the same institution is not suggested).
+    """
+    if request.institution is not None:
+        current_user.institution = sanitize_string(request.institution, max_length=255) or None
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    logger.info(f"Updated profile for user {current_user.username}")
+
     return UserResponse.model_validate(current_user)
 
 

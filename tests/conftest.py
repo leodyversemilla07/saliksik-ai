@@ -47,6 +47,7 @@ reviewer_matcher_mock = MagicMock()
 reviewer_matcher_mock.get_reviewer_matcher.return_value.create_expertise_embedding.return_value = None
 reviewer_matcher_mock.get_reviewer_matcher.return_value.calculate_keyword_similarity.return_value = (0.5, ["test"])
 reviewer_matcher_mock.get_reviewer_matcher.return_value.find_matching_reviewers_async.return_value = []
+reviewer_matcher_mock.get_reviewer_matcher.return_value.check_conflict_of_interest.return_value = (False, [])
 sys.modules["app.services.reviewer_matcher"] = reviewer_matcher_mock
 
 sys.modules["app.services.plagiarism_checker"] = MagicMock()

@@ -112,7 +112,10 @@ Get current user's profile information.
  "id": 1,
  "username": "editor1",
  "email": "editor@journal.com",
+ "role": "user",
+ "institution": "Example University",
  "is_active": true,
+ "is_email_verified": true,
  "created_at": "2025-11-07T08:22:54Z",
  "last_login": "2025-11-07T08:30:00Z"
 }
@@ -120,6 +123,31 @@ Get current user's profile information.
 
 **Error Responses:**
 - `401 Unauthorized` - Invalid or expired token
+
+---
+
+### Update Profile
+
+Update the current user's affiliation. The affiliation is used to detect
+reviewer conflicts of interest: a reviewer from the same institution is neither
+suggested nor assignable.
+
+**Endpoint:** `PUT /api/v1/auth/profile`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+ "institution": "Example University"
+}
+```
+
+**Response:** `200 OK` — the updated user object.
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or expired token
+- `422 Unprocessable Entity` - Invalid payload
 
 ---
 

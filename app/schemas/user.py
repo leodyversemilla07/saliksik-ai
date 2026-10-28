@@ -14,6 +14,7 @@ class UserRegister(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(..., min_length=8)
+    institution: Optional[str] = Field(None, max_length=255)
 
 
 class UserLogin(BaseModel):
@@ -30,12 +31,19 @@ class UserResponse(BaseModel):
     username: str
     email: str
     role: str = "user"
+    institution: Optional[str] = None
     is_active: bool
     is_email_verified: bool = False
     created_at: datetime
     last_login: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserProfileUpdate(BaseModel):
+    """Update the mutable parts of a user profile."""
+
+    institution: Optional[str] = Field(None, max_length=255)
 
 
 class TokenResponse(BaseModel):
