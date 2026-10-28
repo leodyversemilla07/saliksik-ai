@@ -2,6 +2,7 @@
 Reviewer management and matching API endpoints.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -101,9 +102,10 @@ async def create_reviewer_profile(request: ReviewerCreate, db: DbSession, curren
         clean_institution = sanitize_string(request.institution, max_length=255) if request.institution else None
         clean_department = sanitize_string(request.department, max_length=255) if request.department else None
 
-        # Create expertise embedding
+        # Create expertise embedding (model inference runs in a worker thread so
+        # it does not block the event loop).
         matcher = get_reviewer_matcher()
-        embedding = matcher.create_expertise_embedding(clean_keywords, clean_description)
+        embedding = await asyncio.to_thread(matcher.create_expertise_embedding, clean_keywords, clean_description)
 
         # Create reviewer profile
         reviewer = Reviewer(
@@ -164,15 +166,16 @@ async def update_my_reviewer_profile(request: ReviewerUpdate, db: DbSession, cur
         )
 
     try:
-        # Update fields if provided
+        # Update fields if provided, applying the same normalization as
+        # profile creation.
         if request.expertise_keywords is not None:
-            reviewer.expertise_keywords = request.expertise_keywords
+            reviewer.expertise_keywords = sanitize_keywords(request.expertise_keywords)
         if request.expertise_description is not None:
-            reviewer.expertise_description = request.expertise_description
+            reviewer.expertise_description = sanitize_string(request.expertise_description, max_length=1000)
         if request.institution is not None:
-            reviewer.institution = request.institution
+            reviewer.institution = sanitize_string(request.institution, max_length=255)
         if request.department is not None:
-            reviewer.department = request.department
+            reviewer.department = sanitize_string(request.department, max_length=255)
         if request.orcid_id is not None:
             reviewer.orcid_id = request.orcid_id
         if request.is_available is not None:
@@ -183,8 +186,10 @@ async def update_my_reviewer_profile(request: ReviewerUpdate, db: DbSession, cur
         # Re-create embedding if keywords or description changed
         if request.expertise_keywords is not None or request.expertise_description is not None:
             matcher = get_reviewer_matcher()
-            reviewer.expertise_embedding = matcher.create_expertise_embedding(
-                reviewer.expertise_keywords, reviewer.expertise_description
+            reviewer.expertise_embedding = await asyncio.to_thread(
+                matcher.create_expertise_embedding,
+                reviewer.expertise_keywords,
+                reviewer.expertise_description,
             )
 
         await db.commit()
@@ -221,7 +226,10 @@ async def list_reviewers(
     stmt = select(Reviewer).options(selectinload(Reviewer.user))
 
     if available_only:
-        stmt = stmt.filter(Reviewer.is_available.is_(True))
+        stmt = stmt.filter(
+            Reviewer.is_available.is_(True),
+            Reviewer.current_assignments < Reviewer.max_assignments,
+        )
 
     if keyword:
         # JSON array contains filter (PostgreSQL specific, falls back to LIKE for others)
@@ -230,7 +238,10 @@ async def list_reviewers(
     # Count total (without the selectinload for efficiency)
     count_base = select(Reviewer)
     if available_only:
-        count_base = count_base.filter(Reviewer.is_available.is_(True))
+        count_base = count_base.filter(
+            Reviewer.is_available.is_(True),
+            Reviewer.current_assignments < Reviewer.max_assignments,
+        )
     if keyword:
         count_base = count_base.filter(Reviewer.expertise_keywords.contains([keyword.lower()]))
     count_stmt = select(func.count()).select_from(count_base.subquery())
@@ -303,7 +314,14 @@ async def get_reviewer_suggestions(
     )
 
     # Count available reviewers
-    count_stmt = select(func.count()).select_from(Reviewer).filter(Reviewer.is_available.is_(True))
+    count_stmt = (
+        select(func.count())
+        .select_from(Reviewer)
+        .filter(
+            Reviewer.is_available.is_(True),
+            Reviewer.current_assignments < Reviewer.max_assignments,
+        )
+    )
     count_result = await db.execute(count_stmt)
     available_count = count_result.scalar()
 
@@ -354,7 +372,7 @@ async def assign_reviewer(
         )
 
     # Get the reviewer
-    stmt = select(Reviewer).filter(Reviewer.id == reviewer_id)
+    stmt = select(Reviewer).options(selectinload(Reviewer.user)).filter(Reviewer.id == reviewer_id)
     result = await db.execute(stmt)
     reviewer = result.scalar_one_or_none()
 
@@ -365,6 +383,12 @@ async def assign_reviewer(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reviewer is not accepting new assignments",
+        )
+
+    if reviewer.user_id == analysis.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The manuscript author cannot be assigned as a reviewer",
         )
 
     # Check if already assigned
@@ -510,6 +534,19 @@ async def update_assignment_status(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid status. Must be one of: {valid_statuses}",
+        )
+
+    allowed_transitions = {
+        "suggested": {"accepted", "declined"},
+        "invited": {"accepted", "declined"},
+        "accepted": {"completed"},
+        "declined": set(),
+        "completed": set(),
+    }
+    if request.status not in allowed_transitions.get(match.status, set()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot change assignment status from '{match.status}' to '{request.status}'",
         )
 
     try:

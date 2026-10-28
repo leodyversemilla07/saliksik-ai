@@ -18,7 +18,6 @@ logger = get_logger(__name__)
 # Maximum request body sizes (in bytes)
 MAX_JSON_SIZE = 1 * 1024 * 1024  # 1MB for JSON
 MAX_FILE_SIZE = settings.MAX_FILE_SIZE_MB * 1024 * 1024  # From config
-MAX_TEXT_LENGTH = 100_000  # 100K characters for manuscript text
 
 # Patterns for dangerous content
 SCRIPT_PATTERN = re.compile(r"<script[^>]*>.*?</script>", re.IGNORECASE | re.DOTALL)
@@ -40,7 +39,14 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         content_type = request.headers.get("content-type", "")
 
         if content_length:
-            size = int(content_length)
+            try:
+                size = int(content_length)
+            except ValueError:
+                logger.warning("Request rejected: invalid Content-Length header")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid Content-Length header",
+                )
 
             # Check file upload size
             if "multipart/form-data" in content_type:
@@ -129,11 +135,8 @@ def sanitize_manuscript_text(text: str) -> str:
     # Remove event handlers
     text = EVENT_HANDLER_PATTERN.sub("", text)
 
-    # Limit length
-    if len(text) > MAX_TEXT_LENGTH:
-        text = text[:MAX_TEXT_LENGTH]
-        logger.warning(f"Manuscript text truncated to {MAX_TEXT_LENGTH} characters")
-
+    # Length is validated by the API layer so oversized input is rejected
+    # rather than silently changing the submitted manuscript.
     return text.strip()
 
 
@@ -284,6 +287,32 @@ def sanitize_filename(filename: str) -> str:
     return filename or "unnamed"
 
 
+def get_client_ip(request: Request) -> str:
+    """
+    Resolve the client IP address.
+
+    ``X-Forwarded-For`` is client-controlled, so it is only honoured when the
+    direct peer is a known reverse proxy (``settings.TRUSTED_PROXIES``). In that
+    case the right-most address that is not itself a trusted proxy is used.
+    """
+    peer = request.client.host if request.client else "unknown"
+
+    trusted_proxies = set(settings.TRUSTED_PROXIES or [])
+    if not trusted_proxies or peer not in trusted_proxies:
+        return peer
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if not forwarded:
+        return peer
+
+    candidates = [value.strip() for value in forwarded.split(",") if value.strip()]
+    for candidate in reversed(candidates):
+        if candidate not in trusted_proxies:
+            return candidate
+
+    return peer
+
+
 def rate_limit_key(request: Request, prefix: str = "rl") -> str:
     """
     Generate a rate limit key for the request.
@@ -294,10 +323,4 @@ def rate_limit_key(request: Request, prefix: str = "rl") -> str:
     if user_id:
         return f"{prefix}:user:{user_id}"
 
-    # Fall back to IP address
-    client_ip = request.client.host if request.client else "unknown"
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
-
-    return f"{prefix}:ip:{client_ip}"
+    return f"{prefix}:ip:{get_client_ip(request)}"

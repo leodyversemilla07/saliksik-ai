@@ -20,10 +20,10 @@ classifiers = [
 ]
 dependencies = [
     # FastAPI core
-    "fastapi==0.127.0",
+    "fastapi==0.162.0",
     "uvicorn[standard]==0.40.0",
     "pydantic==2.12.5",
-    "pydantic-settings==2.12.0",
+    "pydantic-settings==2.16.1",
 
     # Database
     "sqlalchemy==2.0.45",
@@ -33,33 +33,31 @@ dependencies = [
     "alembic==1.14.0",
 
     # Authentication & Security
-    "python-jose[cryptography]>=3.4.0,<4.0.0",
+    "PyJWT[crypto]==2.15.1",
     "bcrypt==5.0.0",
-    "python-multipart==0.0.20",
+    "python-multipart==0.0.32",
     "email-validator>=2.0.0",
 
     # AI/ML
     "spacy==3.8.7",
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
-    "nltk==3.9.1",
+    # NOTE: transformers 5.x removed the `summarization` pipeline that this
+    # project relies on; stay on 4.x until the summariser is migrated.
     "transformers==4.57.1",
     "numpy==2.2.3",
-    "pypdf==5.2.0",
-    "torch==2.6.0",
+    "pypdf==6.21.3",
+    "torch==2.14.1",
     "yake==0.4.8",
-    "textstat==0.7.3",
+    "pyphen==0.17.2",
 
     # Async & Background Tasks
     "celery==5.5.3",
     "redis==5.2.1",
 
-    # Utilities
-    "python-decouple==3.8",
-
     # Enhancement Features
     "datasketch==1.8.0",
     "xxhash==3.6.0",
-    "sentence-transformers==5.2.0",
+    "sentence-transformers==5.6.0",
     "langdetect==1.0.9",
 ]
 

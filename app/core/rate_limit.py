@@ -236,12 +236,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             return hashlib.sha256(api_key.encode()).hexdigest()[:16]
 
-        # Fall back to IP address
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        # Fall back to the (proxy-aware) client IP address
+        from app.core.security_utils import get_client_ip
 
-        return request.client.host if request.client else "unknown"
+        return get_client_ip(request)
 
     def _is_authenticated(self, request: Request) -> bool:
         """Check if request appears to be authenticated."""

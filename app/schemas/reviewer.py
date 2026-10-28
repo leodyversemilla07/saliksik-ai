@@ -37,7 +37,11 @@ class ReviewerUpdate(BaseModel):
     expertise_description: Optional[str] = Field(None, max_length=1000, description="Updated expertise description")
     institution: Optional[str] = Field(None, max_length=255, description="Updated institution")
     department: Optional[str] = Field(None, max_length=255, description="Updated department")
-    orcid_id: Optional[str] = Field(None, description="Updated ORCID identifier")
+    orcid_id: Optional[str] = Field(
+        None,
+        pattern=r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$",
+        description="Updated ORCID identifier",
+    )
     is_available: Optional[bool] = Field(None, description="Whether accepting new reviews")
     max_assignments: Optional[int] = Field(None, ge=1, le=20, description="Updated max assignments")
 

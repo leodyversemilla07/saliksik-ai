@@ -1,12 +1,15 @@
-import asyncio
 import os
 import sys
+import tempfile
 from unittest.mock import MagicMock, patch
+
+# Process-unique SQLite file: avoids clashes between concurrent pytest runs.
+TEST_DB_PATH = os.path.join(tempfile.gettempdir(), f"saliksik_test_{os.getpid()}.db")
 
 # Set required env vars BEFORE any app imports
 os.environ.setdefault("SECRET_KEY", "test-secret-key-minimum-32-characters-long-for-testing")
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_suite.db")
-os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///./test_suite.db")
+os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{TEST_DB_PATH}")
+os.environ.setdefault("SQLALCHEMY_DATABASE_URI", f"sqlite:///{TEST_DB_PATH}")
 
 # MOCKING HEAVY DEPENDENCIES BEFORE IMPORTS
 mocks = [
@@ -58,12 +61,14 @@ from httpx import AsyncClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import NullPool  # noqa: E402
 
 from app.core.database import Base, get_db  # noqa: E402
 from main import app  # noqa: E402
 
-# Use SQLite for testing
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_suite.db"
+# Use SQLite for testing. A process-unique file avoids clashes when several
+# pytest processes (or CI shards) run against the same checkout.
+TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 
 # Configure Celery for testing (Eager mode)
 from app.celery_app import celery_app  # noqa: E402
@@ -74,29 +79,23 @@ celery_app.conf.update(
 
 
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
 async def db_engine():
-    engine = create_async_engine(TEST_DATABASE_URL, future=True, echo=False)
+    # NullPool keeps connections from being reused across the per-test event
+    # loops; pooled aiosqlite connections otherwise end up attached to a loop
+    # that has already been closed.
+    engine = create_async_engine(TEST_DATABASE_URL, future=True, echo=False, poolclass=NullPool)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
     # Cleanup file (with retry for Windows file locking)
-    if os.path.exists("./test_suite.db"):
+    if os.path.exists(TEST_DB_PATH):
         try:
-            os.remove("./test_suite.db")
+            os.remove(TEST_DB_PATH)
         except PermissionError:
             pass  # File may still be locked on Windows, ignore
 
@@ -105,9 +104,10 @@ async def db_engine():
 def sync_db_engine():
     """Synchronous engine for Celery tasks in eager mode."""
     # Must point to the same file as TEST_DATABASE_URL
-    sync_test_db_url = "sqlite:///./test_suite.db"
+    sync_test_db_url = f"sqlite:///{TEST_DB_PATH}"
     engine = create_engine(sync_test_db_url, echo=False)
-    return engine
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture(scope="function")

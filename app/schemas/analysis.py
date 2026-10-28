@@ -17,10 +17,14 @@ class AnalysisRequest(BaseModel):
     manuscript_text: str = Field(..., min_length=50, max_length=250000)  # Approx 40k words
 
 
+# Public demo endpoint limit (characters).
+DEMO_MAX_TEXT_LENGTH = 5000
+
+
 class DemoAnalysisRequest(BaseModel):
     """Demo analysis request schema (limited)."""
 
-    manuscript_text: str = Field(..., min_length=50, max_length=5000)
+    manuscript_text: str = Field(..., min_length=50, max_length=DEMO_MAX_TEXT_LENGTH)
 
 
 class LanguageQuality(BaseModel):

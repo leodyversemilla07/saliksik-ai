@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +116,20 @@ async def app_exception_handler(request: Request, exc: AppExceptionError) -> JSO
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Handle FastAPI HTTP exceptions."""
-    return create_error_response(status_code=exc.status_code, error_code="HTTP_ERROR", message=str(exc.detail))
+    """Handle FastAPI HTTP exceptions while preserving protocol headers."""
+    response = create_error_response(status_code=exc.status_code, error_code="HTTP_ERROR", message=str(exc.detail))
+    for name, value in (exc.headers or {}).items():
+        response.headers[name] = value
+    return response
+
+
+async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Handle framework-level HTTP errors (404, 405, ...) with the same envelope."""
+    detail = exc.detail if isinstance(exc.detail, str) else "HTTP error"
+    response = create_error_response(status_code=exc.status_code, error_code="HTTP_ERROR", message=detail)
+    for name, value in (exc.headers or {}).items():
+        response.headers[name] = value
+    return response
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -167,6 +180,7 @@ def register_exception_handlers(app):
     """Register all exception handlers with the FastAPI app."""
     app.add_exception_handler(AppExceptionError, app_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
     app.add_exception_handler(Exception, general_exception_handler)

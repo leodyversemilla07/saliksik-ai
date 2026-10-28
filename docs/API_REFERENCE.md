@@ -187,46 +187,32 @@ Analyze manuscript (text or PDF) with full features.
 **Request Parameters:**
 
 Either:
-- `manuscript_text` (form field): Text content (50-250000 chars)
+- `manuscript_text` (form field): Text content (50 chars to `MAX_MANUSCRIPT_CHARS`, default 200,000)
 
 Or:
-- `manuscript_file` (file upload): PDF file (max 50MB)
+- `manuscript_file` (file upload): PDF file (max `MAX_FILE_SIZE_MB`, default 50MB)
 
-**Response:** `200 OK`
+**Response:** `202 Accepted`
 ```json
 {
- "summary": "AI-generated comprehensive summary...",
- "keywords": [
- "research",
- "methodology",
- "analysis"
- ],
- "language_quality": {
- "word_count": 1250,
- "unique_words": 890,
- "sentence_count": 45,
- "named_entities": 12,
- "readability_score": 68.5,
- "grammar_issues": 3
- },
- "metadata": {
+ "task_id": "b9dfbcd9-fd59-4bab-8fb7-586ca10e487a",
  "analysis_id": 123,
- "input_length": 1250,
- "processing_time": 2.34,
- "user": "editor1",
- "timestamp": "2025-11-07T08:22:54Z",
- "cached": false
- }
+ "status": "PENDING",
+ "message": "Analysis started successfully. Poll /status/{task_id} for results."
 }
 ```
+
+The submission is asynchronous: poll `GET /api/v1/analysis/status/{task_id}` for the result.
+Only the analysis id is sent to the queue — the manuscript text stays in the database.
 
 **Error Responses:**
 - `400 Bad Request` - No text or file provided
 - `400 Bad Request` - Invalid file type (PDF only)
-- `400 Bad Request` - File too large (> 50MB)
-- `400 Bad Request` - Text too short or long
+- `400 Bad Request` - File too large (> `MAX_FILE_SIZE_MB`)
+- `400 Bad Request` - Text too short (< 50 chars)
 - `401 Unauthorized` - Invalid or missing token
-- `500 Internal Server Error` - Processing error
+- `413 Request Entity Too Large` - Text longer than `MAX_MANUSCRIPT_CHARS`
+- `503 Service Unavailable` - The analysis queue could not be reached
 
 ---
 
@@ -248,7 +234,7 @@ While the task is queued or running, the response contains a `status` field:
 }
 ```
 
-When the task completes, the response is the full analysis result (the same shape as the demo response), including `summary`, `keywords`, `language_quality`, and `metadata`. If the task failed, the response contains `"status": "FAILED"`.
+When the task completes, the response is the full analysis result (the same shape as the demo response), including `summary`, `keywords`, `language_quality`, `metadata`, and — when the corresponding features are enabled — `language`, `plagiarism` and `citation_analysis`. If the task failed, the response contains `"status": "FAILED"`.
 
 ---
 
@@ -297,7 +283,7 @@ Get cache performance statistics.
 
 **Endpoint:** `GET /api/v1/analysis/cache/stats`
 
-**Authentication:** Not required
+**Authentication:** Required (admin only)
 
 **Response:** `200 OK`
 ```json
@@ -321,7 +307,7 @@ Clear all cached analysis results.
 
 **Endpoint:** `POST /api/v1/analysis/cache/clear`
 
-**Authentication:** Required
+**Authentication:** Required (admin only)
 
 **Response:** `200 OK`
 ```json
@@ -384,16 +370,16 @@ Get API metadata and capabilities.
  "api_info": "/api/v1/info - This endpoint"
  },
  "limits": {
- "demo": {
- "max_text_length": 5000,
- "file_upload": false,
- "rate_limit": "60/hour"
+ "demo_max_text_length": 5000,
+ "authenticated_max_text_length": 200000,
+ "max_file_size_mb": 50,
+ "plagiarism_threshold": 0.5
  },
- "authenticated": {
- "max_file_size": "10MB",
- "max_text_length": 50000,
- "rate_limit": "100/hour"
- }
+ "features_enabled": {
+ "plagiarism_check": true,
+ "citation_analysis": true,
+ "reviewer_matching": true,
+ "auto_detect_language": true
  },
  "status": {
  "server": "online",
@@ -415,13 +401,19 @@ All endpoints may return the following error formats:
 
 ```json
 {
- "detail": [
- {
- "loc": ["body", "manuscript_text"],
- "msg": "field required",
- "type": "value_error.missing"
+ "error": {
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed",
+  "details": {
+   "errors": [
+    {
+     "field": "body.manuscript_text",
+     "message": "Field required",
+     "type": "missing"
+    }
+   ]
+  }
  }
- ]
 }
 ```
 
@@ -431,9 +423,14 @@ All endpoints may return the following error formats:
 
 ```json
 {
- "detail": "Invalid or expired token"
+ "error": {
+  "code": "HTTP_ERROR",
+  "message": "Invalid or expired token"
+ }
 }
 ```
+
+The response also carries the `WWW-Authenticate: Bearer` header.
 
 ### Not Found
 
@@ -441,7 +438,10 @@ All endpoints may return the following error formats:
 
 ```json
 {
- "detail": "Not Found"
+ "error": {
+  "code": "HTTP_ERROR",
+  "message": "Not Found"
+ }
 }
 ```
 
@@ -451,9 +451,27 @@ All endpoints may return the following error formats:
 
 ```json
 {
- "detail": "Internal server error during processing"
+ "error": {
+  "code": "INTERNAL_ERROR",
+  "message": "An unexpected error occurred"
+ }
 }
 ```
+
+### Rate Limit
+
+**Status:** `429 Too Many Requests`
+
+```json
+{
+ "error": {
+  "code": "RATE_LIMIT_EXCEEDED",
+  "message": "Rate limit exceeded. Try again in 60 seconds."
+ }
+}
+```
+
+The response carries a `Retry-After` header.
 
 ---
 
@@ -471,9 +489,11 @@ Check manuscript for plagiarism against stored documents.
 ```json
 {
  "manuscript_text": "string (50-100000 chars, required)",
- "threshold": 0.5  // Optional, 0.1-0.95
+ "threshold": 0.5  // Optional, 0.1-0.95; defaults to PLAGIARISM_THRESHOLD
 }
 ```
+
+The comparison is scoped to the authenticated user's own documents.
 
 **Response:** `200 OK`
 ```json
@@ -502,7 +522,7 @@ Get plagiarism detection index statistics.
 
 **Endpoint:** `GET /api/v1/plagiarism/stats`
 
-**Authentication:** Not required
+**Authentication:** Required
 
 **Response:** `200 OK`
 ```json

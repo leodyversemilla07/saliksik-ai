@@ -44,7 +44,9 @@ class ManuscriptAnalysis(Base):
 
     # Enhancement features results
     detected_language: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    language_info: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     citation_analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    plagiarism_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Async Task Info
     status: Mapped[str] = mapped_column(

@@ -3,6 +3,7 @@ Reviewer matching service using keyword and semantic similarity.
 Matches manuscripts with reviewers based on expertise.
 """
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ except ImportError:
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,16 @@ class ReviewerMatcher:
                 logger.error(f"Failed to load sentence transformer: {e}")
                 self._model = None
         return self._model
+
+    def create_text_embedding(self, text: str) -> Optional[np.ndarray]:
+        """Create one reusable embedding for a manuscript text."""
+        if not SENTENCE_TRANSFORMERS_AVAILABLE or self.model is None or not text.strip():
+            return None
+        try:
+            return self.model.encode(text, convert_to_numpy=True)
+        except Exception as exc:
+            logger.error("Failed to create manuscript embedding: %s", exc)
+            return None
 
     def create_expertise_embedding(self, keywords: List[str], description: Optional[str] = None) -> Optional[bytes]:
         """
@@ -145,7 +157,12 @@ class ReviewerMatcher:
 
         return min(similarity, 1.0), list(matched)
 
-    def calculate_semantic_similarity(self, manuscript_text: str, reviewer_embedding: bytes) -> float:
+    def calculate_semantic_similarity(
+        self,
+        manuscript_text: str,
+        reviewer_embedding: bytes,
+        manuscript_embedding: Optional[np.ndarray] = None,
+    ) -> float:
         """
         Calculate semantic similarity using embeddings.
 
@@ -156,8 +173,11 @@ class ReviewerMatcher:
             return 0.0
 
         try:
-            # Generate manuscript embedding
-            ms_embedding = self.model.encode(manuscript_text, convert_to_numpy=True)
+            # Generate the manuscript embedding once and reuse it for every
+            # reviewer in the request.
+            ms_embedding = manuscript_embedding
+            if ms_embedding is None:
+                ms_embedding = self.model.encode(manuscript_text, convert_to_numpy=True)
 
             # Deserialize reviewer embedding
             rv_embedding = self._deserialize_embedding(reviewer_embedding)
@@ -220,13 +240,19 @@ class ReviewerMatcher:
         suggestions = []
 
         # Query available reviewers (async)
-        stmt = select(Reviewer).filter(Reviewer.is_available)
+        stmt = select(Reviewer).options(selectinload(Reviewer.user)).filter(Reviewer.is_available)
 
         if exclude_user_ids:
             stmt = stmt.filter(Reviewer.user_id.notin_(exclude_user_ids))
 
         result = await db.execute(stmt)
         reviewers = result.scalars().all()
+
+        text_sample = manuscript_text[:2000] if manuscript_text else ""
+        manuscript_embedding = None
+        if any(reviewer.expertise_embedding for reviewer in reviewers):
+            # Model inference is CPU/GPU bound: keep it off the event loop.
+            manuscript_embedding = await asyncio.to_thread(self.create_text_embedding, text_sample)
 
         for reviewer in reviewers:
             if not reviewer.is_accepting_reviews:
@@ -243,8 +269,11 @@ class ReviewerMatcher:
 
             if reviewer.expertise_embedding:
                 # Use summary or first part of text for semantic matching
-                text_sample = manuscript_text[:2000] if manuscript_text else ""
-                semantic_score = self.calculate_semantic_similarity(text_sample, reviewer.expertise_embedding)
+                semantic_score = self.calculate_semantic_similarity(
+                    text_sample,
+                    reviewer.expertise_embedding,
+                    manuscript_embedding=manuscript_embedding,
+                )
 
                 if semantic_score > 0:
                     match_method = "hybrid" if keyword_score > 0 else "semantic"

@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.deps import (
@@ -45,8 +46,14 @@ async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, curre
     try:
         detector = get_plagiarism_detector()
 
-        # Check against database (async)
-        result = await detector.check_similarity_with_database_async(text=request.manuscript_text, db=db)
+        # Compare only against the current user's persisted documents. This
+        # prevents similarity responses from exposing another tenant's files.
+        result = await detector.check_similarity_with_database_async(
+            text=request.manuscript_text,
+            db=db,
+            user_id=current_user.id,
+            threshold=request.threshold,
+        )
 
         logger.info(
             f"Plagiarism check by {current_user.username}: "
@@ -105,26 +112,32 @@ async def rebuild_plagiarism_index(db: DbSession, current_user: AdminUser):
 
     Note: This is an admin operation and may take time for large databases.
     """
-    from app.models.analysis import ManuscriptAnalysis
+    from app.models.document_fingerprint import DocumentFingerprint
 
     try:
         detector = get_plagiarism_detector()
+        detector.clear_index()
 
-        # Get all analyses with their fingerprints (async)
-        stmt = select(ManuscriptAnalysis).filter(ManuscriptAnalysis.status == "COMPLETED")
+        # Rebuild from persisted fingerprints rather than truncated source text.
+        stmt = (
+            select(DocumentFingerprint)
+            .options(selectinload(DocumentFingerprint.analysis))
+            .join(DocumentFingerprint.analysis)
+        )
         result = await db.execute(stmt)
-        analyses = result.scalars().all()
+        fingerprints = result.scalars().all()
 
         indexed_count = 0
-        for analysis in analyses:
-            if analysis.manuscript_text:
-                success = detector.add_to_index(
-                    doc_id=analysis.id,
-                    text=analysis.manuscript_text,
-                    filename=analysis.original_filename,
-                )
-                if success:
-                    indexed_count += 1
+        for fingerprint in fingerprints:
+            analysis = fingerprint.analysis
+            success = detector.add_fingerprint_to_index(
+                doc_id=fingerprint.analysis_id,
+                fingerprint_hash=fingerprint.fingerprint_hash,
+                filename=analysis.original_filename if analysis else None,
+                shingles=list(fingerprint.shingles or []),
+            )
+            if success:
+                indexed_count += 1
 
         logger.info(f"Rebuilt plagiarism index: {indexed_count} documents indexed by {current_user.username}")
 

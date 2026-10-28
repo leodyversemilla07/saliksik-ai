@@ -85,8 +85,10 @@ uv pip install -e ".[test,dev]"
 
 ```bash
 uv run python -m spacy download en_core_web_sm
-uv run python -c "import nltk; nltk.download('punkt')"
 ```
+
+The sentence splitter and readability scorer are implemented locally, so no NLTK data download
+is required.
 
 ### 4. Setup Pre-commit Hooks (Optional)
 

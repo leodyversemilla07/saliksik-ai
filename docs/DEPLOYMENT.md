@@ -98,10 +98,10 @@ cd saliksik-ai
 # Install the project's Python version and locked dependencies
 uv python install 3.12
 uv sync --frozen
-
-# Download NLTK tokenizer data (the spaCy model is installed by uv sync)
-uv run python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 ```
+
+The spaCy model is installed by `uv sync`; no NLTK data download is required — sentence
+splitting and readability scoring are implemented locally.
 
 ---
 
@@ -224,7 +224,8 @@ PY
 
 ## Systemd Services
 
-The application needs two long-running services: the FastAPI API and a Celery worker that processes analysis jobs.
+The application needs three long-running services: the FastAPI API, a Celery worker that processes
+analysis jobs, and (recommended) Celery Beat, which periodically marks stale analyses as failed.
 
 ### 1. API Service
 
@@ -288,15 +289,53 @@ TimeoutStopSec=60
 WantedBy=multi-user.target
 ```
 
-### 3. Start the Services
+### 3. Celery Beat Service (recommended)
+
+Create `/etc/systemd/system/saliksik-beat.service`:
+
+```ini
+[Unit]
+Description=Saliksik AI Celery Beat Scheduler
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=saliksik
+Group=saliksik
+WorkingDirectory=/home/saliksik/saliksik-ai
+Environment="PATH=/home/saliksik/saliksik-ai/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/saliksik/saliksik-ai/.env
+ExecStart=/home/saliksik/saliksik-ai/.venv/bin/celery \
+    -A app.celery_app.celery_app \
+    beat \
+    --loglevel=INFO \
+    --schedule=/var/lib/saliksik/celerybeat-schedule
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Create the schedule directory first so the service can persist its schedule file:
+
+```bash
+sudo mkdir -p /var/lib/saliksik
+sudo chown saliksik:saliksik /var/lib/saliksik
+```
+
+### 4. Start the Services
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now saliksik-ai saliksik-worker
+sudo systemctl enable --now saliksik-ai saliksik-worker saliksik-beat
 
 # Check status
 sudo systemctl status saliksik-ai
 sudo systemctl status saliksik-worker
+sudo systemctl status saliksik-beat
 
 # Verify the API
 curl http://127.0.0.1:8000/health

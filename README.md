@@ -30,7 +30,7 @@ Saliksik AI streamlines the initial manuscript review process by automatically a
 
 - **AI-Powered Summarization** — DistilBART transformer model for abstractive summarization (306M params, ~600MB)
 - **Keyword Extraction** — YAKE algorithm for unsupervised keyword identification, no training data needed
-- **Readability Scoring** — Flesch Reading Ease, Flesch-Kincaid Grade, Automated Readability Index via textstat
+- **Readability Scoring** — Flesch Reading Ease, Flesch-Kincaid Grade and Automated Readability Index (local, no external services)
 - **Plagiarism Detection** — MinHash LSH for efficient document similarity checking
 - **Reviewer Matching** — Semantic similarity matching using sentence-transformers (all-MiniLM-L6-v2)
 - **PDF Support** — Direct PDF upload with text extraction via pypdf
@@ -50,22 +50,22 @@ Saliksik AI streamlines the initial manuscript review process by automatically a
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| API Framework | FastAPI 0.127 | Async, auto-docs, type-safe |
+| API Framework | FastAPI 0.162 | Async, auto-docs, type-safe |
 | Database | PostgreSQL 15 + asyncpg | ACID, connection pooling |
 | Cache | Redis 7 | Low-latency caching + Celery broker |
-| Auth | python-jose + bcrypt | JWT with token rotation |
+| Auth | PyJWT + bcrypt | JWT with token rotation and token-type separation |
 | Summarization | DistilBART (sshleifer/distilbart-cnn-12-6) | 27% smaller than BART, near-identical quality |
 | Keywords | YAKE | Unsupervised, no training data, multilingual-ready |
-| Readability | textstat | Pure Python, accurate Flesch scores, no Java needed |
+| Readability | pyphen | Local syllable hyphenation for Flesch/FK/ARI, no Java or NLTK data needed |
 | Plagiarism | datasketch (MinHash LSH) | O(n) similarity, scales to large corpora |
 | Embeddings | sentence-transformers (all-MiniLM-L6-v2) | 22.7M params, fast, good for semantic search |
 | Background Tasks | Celery + Redis | Async manuscript processing |
-| Testing | pytest + pytest-asyncio + httpx | 80+ tests, async test client |
+| Testing | pytest + pytest-asyncio + httpx | 130+ tests, async test client |
 | Linting | ruff | Fast, replaces flake8 + black + isort |
 
 ### Why these models?
 
-The ML stack was chosen to maximize quality per megabyte. BART-large-cnn (1.5GB) was replaced with DistilBART (600MB) for nearly identical summarization quality. language-tool-python (requires Java JRE) was replaced with textstat (pure Python). TF-IDF was replaced with YAKE for better academic keyword extraction without scikit-learn.
+The ML stack was chosen to maximize quality per megabyte. BART-large-cnn (1.5GB) was replaced with DistilBART (600MB) for nearly identical summarization quality. language-tool-python (requires Java JRE) was replaced with a local readability implementation built on `pyphen`. TF-IDF was replaced with YAKE for better academic keyword extraction without scikit-learn.
 
 ---
 
@@ -85,9 +85,6 @@ uv venv
 # Install all dependencies (main + test + dev) in editable mode
 uv pip install -e ".[test,dev]"
 
-# Download NLTK tokenizer data
-uv run python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
-
 # Configure
 cp .env.example .env  # Windows: copy .env.example .env
 # Edit .env with your database URL and SECRET_KEY
@@ -103,6 +100,12 @@ Then start the Celery worker in a second terminal (required for manuscript analy
 
 ```bash
 uv run celery -A app.celery_app.celery_app worker --loglevel=INFO --queues=analysis,default
+```
+
+Celery Beat is optional but recommended — it runs the periodic cleanup of stale analyses:
+
+```bash
+uv run celery -A app.celery_app.celery_app beat --loglevel=INFO
 ```
 
 On the first analysis, the DistilBART summarization model (~600 MB) is downloaded from Hugging Face and
@@ -273,6 +276,8 @@ uv run ruff check app/ && uv run ty check app/
 The GitHub Actions workflow runs on every push to `main`:
 - **Lint job** — ruff check + format verification
 - **Test job** — pytest with coverage, PostgreSQL + Redis services
+- **Security job** — `pip-audit` against the locked dependency set
+- **Migration job** — `alembic upgrade head` + `alembic check` (schema drift detection)
 
 ---
 

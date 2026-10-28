@@ -5,6 +5,7 @@ Analysis endpoints for manuscript processing.
 import asyncio
 import logging
 import time
+from dataclasses import asdict
 from datetime import datetime
 from typing import Optional
 
@@ -12,6 +13,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 
 from app.core.cache import AIResultCache
+from app.core.config import settings
 from app.core.deps import (
     AdminUser,
     AuthenticatedUser,
@@ -25,15 +27,24 @@ from app.schemas.analysis import (
     AnalysisMetadata,
     AnalysisResponse,
     DemoAnalysisRequest,
+    LanguageInfo,
     LanguageQuality,
 )
+from app.schemas.citation import CitationAnalysisResult
+from app.schemas.plagiarism import PlagiarismResult
 from app.services.ai_processor import ManuscriptPreReviewer
+from app.services.citation_analyzer import get_citation_analyzer
+from app.services.language_detector import get_language_detector
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize AI processor
 pre_reviewer = ManuscriptPreReviewer()
+
+# Serialises demo analyses: the summariser model is shared and heavy, so only
+# one demo request may run it at a time.
+_demo_analysis_lock = asyncio.Lock()
 
 
 @router.post("/pre-review", status_code=status.HTTP_202_ACCEPTED)
@@ -91,10 +102,10 @@ async def pre_review(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Text too short for meaningful analysis (minimum 50 characters)",
             )
-        if len(manuscript_text) > 200_000:
+        if len(manuscript_text) > settings.MAX_MANUSCRIPT_CHARS:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="Text exceeds maximum allowed length of 200,000 characters",
+                detail=f"Text exceeds maximum allowed length of {settings.MAX_MANUSCRIPT_CHARS:,} characters",
             )
 
         # Always create a new analysis record and queue a task. Cached AI
@@ -108,7 +119,7 @@ async def pre_review(
             if manuscript_file and manuscript_file.filename
             else None,
             input_type="pdf" if manuscript_file else "text",
-            manuscript_text=manuscript_text[:10000],
+            manuscript_text=manuscript_text,
             status="PENDING",
         )
         db.add(analysis)
@@ -118,7 +129,19 @@ async def pre_review(
         # Trigger background task
         from app.tasks.analysis import process_manuscript_task
 
-        task = process_manuscript_task.delay(analysis.id, manuscript_text)
+        try:
+            # Pass only the database identifier to Celery. Manuscript content
+            # remains in the database instead of being copied into the broker
+            # and the extended Celery result metadata.
+            task = process_manuscript_task.delay(analysis.id)
+        except Exception as exc:
+            analysis.status = "FAILED"
+            await db.commit()
+            logger.error("Failed to enqueue analysis %s: %s", analysis.id, exc, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Analysis queue is temporarily unavailable",
+            ) from exc
 
         # Update with task_id
         analysis.task_id = task.id
@@ -175,6 +198,10 @@ async def get_analysis_status(task_id: str, db: DbSession, current_user: Authent
             grammar_check_available=bool(lq["grammar_check_available"]) if "grammar_check_available" in lq else None,
         )
 
+        language = LanguageInfo(**analysis.language_info) if analysis.language_info else None
+        plagiarism = PlagiarismResult(**analysis.plagiarism_result) if analysis.plagiarism_result else None
+        citation_analysis = CitationAnalysisResult(**analysis.citation_analysis) if analysis.citation_analysis else None
+
         return AnalysisResponse(
             summary=analysis.summary,
             keywords=keywords,
@@ -187,6 +214,9 @@ async def get_analysis_status(task_id: str, db: DbSession, current_user: Authent
                 timestamp=created_at,
                 cached=False,
             ),
+            language=language,
+            plagiarism=plagiarism,
+            citation_analysis=citation_analysis,
         )
     elif analysis.status == "FAILED":
         return {
@@ -228,10 +258,25 @@ async def demo_analysis(request: DemoAnalysisRequest):
             cached_result["metadata"]["demo"] = True
             return cached_result
 
-        # Generate analysis
+        # Generate analysis (CPU/GPU bound work runs in a worker thread)
         logger.info(f"Processing demo manuscript ({len(manuscript_text)} chars)")
-        report = pre_reviewer.generate_report(manuscript_text)
+        async with _demo_analysis_lock:
+            report = await asyncio.to_thread(pre_reviewer.generate_report, manuscript_text)
         processing_time = time.time() - start_time
+
+        language = None
+        citation_analysis = None
+        try:
+            language_info = await asyncio.to_thread(get_language_detector().detect_language, manuscript_text)
+            language = LanguageInfo(**asdict(language_info))
+        except Exception as exc:
+            logger.warning("Demo language detection failed: %s", exc)
+        if settings.ENABLE_CITATION_ANALYSIS:
+            try:
+                citation = await asyncio.to_thread(get_citation_analyzer().analyze, manuscript_text)
+                citation_analysis = CitationAnalysisResult(**asdict(citation))
+            except Exception as exc:
+                logger.warning("Demo citation analysis failed: %s", exc)
 
         response = AnalysisResponse(
             summary=report["summary"],
@@ -243,6 +288,8 @@ async def demo_analysis(request: DemoAnalysisRequest):
                 cached=False,
                 demo=True,
             ),
+            language=language,
+            citation_analysis=citation_analysis,
         )
 
         # Cache for 2 hours

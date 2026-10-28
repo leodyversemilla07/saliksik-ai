@@ -248,7 +248,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not user.is_active or not verify_password(form_data.password, user.hashed_password):
         attempt_count = record_failed_login(form_data.username)
         remaining_attempts = max(0, settings.MAX_LOGIN_ATTEMPTS - attempt_count)
         if remaining_attempts == 0:

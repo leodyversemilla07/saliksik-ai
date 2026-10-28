@@ -1,9 +1,8 @@
 import logging
-from typing import Callable
+import re
 
 import spacy
-from nltk.tokenize import sent_tokenize
-from pypdf import PdfReader
+from pyphen import Pyphen
 
 from app.core.config import settings
 
@@ -19,17 +18,21 @@ try:
     _YAKE_AVAILABLE = True
 except ImportError:
     _YAKE_AVAILABLE = False
-try:
-    import textstat
-
-    _TEXTSTAT_AVAILABLE = True
-except ImportError:
-    _TEXTSTAT_AVAILABLE = False
-
 logger = logging.getLogger(__name__)
 
 
 MODEL_NAME = "sshleifer/distilbart-cnn-12-6"  # 306M params, ~600MB (was bart-large-cnn 400M ~1.5GB)
+
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?…])\s+(?=[A-Z0-9À-ÖØ-Þ\"'“(])")
+_HYPHENATOR = Pyphen(lang="en")
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split text into sentences without requiring downloaded NLTK data."""
+    normalized = text.strip()
+    if not normalized:
+        return []
+    return [part.strip() for part in _SENTENCE_BOUNDARY.split(normalized) if part.strip()]
 
 
 class ManuscriptPreReviewer:
@@ -92,7 +95,7 @@ class ManuscriptPreReviewer:
 
     def split_text(self, text, max_tokens=1024):
         """Splits text into chunks suitable for model input."""
-        sentences = sent_tokenize(text)
+        sentences = split_sentences(text)
         chunks, current_chunk = [], []
         current_length = 0
 
@@ -133,17 +136,29 @@ class ManuscriptPreReviewer:
             # Heuristic: return first N sentences as "summary" in light mode
             summaries = []
             for chunk in text_chunks:
-                sentences = sent_tokenize(chunk)
+                sentences = split_sentences(chunk)
                 summaries.append(" ".join(sentences[:3]))
             return " ".join(summaries)
 
         summaries = []
         for chunk in text_chunks:
-            if len(chunk.split()) < 5:
+            word_count = len(chunk.split())
+            if word_count < 5:
                 summaries.append(chunk)
-            else:
-                summary = self.summarizer(chunk, max_length=130, min_length=30, do_sample=False)
-                summaries.append(summary[0]["summary_text"])
+                continue
+
+            # The final chunk can be shorter than the requested minimum
+            # summary length. Scale both limits to the available input.
+            input_tokens = len(self.tokenizer.encode(chunk, add_special_tokens=False))
+            min_length = min(30, max(5, input_tokens // 2))
+            max_length = min(130, max(min_length, input_tokens))
+            summary = self.summarizer(
+                chunk,
+                max_length=max_length,
+                min_length=min_length,
+                do_sample=False,
+            )
+            summaries.append(summary[0]["summary_text"])
         return " ".join(summaries)
 
     def generate_summary(self, text):
@@ -164,13 +179,25 @@ class ManuscriptPreReviewer:
 
         return [w for w, _ in Counter(nouns).most_common(top_n)]
 
+    @staticmethod
+    def _estimate_syllables(word: str) -> int:
+        """Estimate English syllables using a local hyphenation dictionary."""
+        normalized = re.sub(r"[^a-z]", "", word.lower())
+        if not normalized:
+            return 0
+        if len(normalized) <= 3:
+            return 1
+        return max(1, len(_HYPHENATOR.inserted(normalized).split("-")))
+
     def assess_language_quality(self, text):
         """Analyzes readability and language quality metrics."""
         doc = self.nlp(text)
 
-        word_count = len(text.split())
-        unique_words = len(set(text.split()))
-        sentence_count = len(sent_tokenize(text))
+        words = text.split()
+        normalized_words = [re.sub(r"[^\w'-]", "", word).lower() for word in words]
+        word_count = len(words)
+        unique_words = len({word for word in normalized_words if word})
+        sentence_count = len(split_sentences(text))
         named_entities = len(doc.ents)
 
         quality_metrics: dict[str, int | float] = {
@@ -180,25 +207,32 @@ class ManuscriptPreReviewer:
             "named_entities": named_entities,
         }
 
-        # Use textstat for accurate readability scores
-        if _TEXTSTAT_AVAILABLE and sentence_count > 0 and word_count > 10:
-            # Use getattr to avoid ty errors for untyped third-party library
-            flesch_reading_ease: Callable[[str], float] = getattr(textstat, "flesch_reading_ease")
-            flesch_kincaid_grade: Callable[[str], float] = getattr(textstat, "flesch_kincaid_grade")
-            automated_readability_index: Callable[[str], float] = getattr(textstat, "automated_readability_index")
-            quality_metrics["readability_score"] = round(flesch_reading_ease(text), 2)
-            quality_metrics["flesch_kincaid_grade"] = round(flesch_kincaid_grade(text), 2)
-            quality_metrics["automated_readability"] = round(automated_readability_index(text), 2)
-        elif sentence_count > 0 and word_count > 0:
-            # Fallback: simplified Flesch Reading Ease
-            syllable_count = len([token for token in doc if token.is_alpha])
-            readability_score = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllable_count / word_count)
-            quality_metrics["readability_score"] = round(readability_score, 2)
+        if sentence_count > 0 and word_count > 0:
+            syllable_count = sum(self._estimate_syllables(word) for word in normalized_words)
+            syllables_per_word = syllable_count / word_count
+            words_per_sentence = word_count / sentence_count
+            quality_metrics["readability_score"] = round(
+                206.835 - 1.015 * words_per_sentence - 84.6 * syllables_per_word,
+                2,
+            )
+            quality_metrics["flesch_kincaid_grade"] = round(
+                0.39 * words_per_sentence + 11.8 * syllables_per_word - 15.59,
+                2,
+            )
+            letter_count = sum(1 for char in text if char.isalpha())
+            quality_metrics["automated_readability"] = round(
+                4.71 * (letter_count / word_count) + 0.5 * words_per_sentence - 21.43,
+                2,
+            )
 
         return quality_metrics
 
     def extract_text_from_pdf(self, pdf_file):
         """Extract text from a PDF file using pypdf."""
+        # Imported lazily: pypdf is expensive to import and only needed when a
+        # PDF is actually submitted.
+        from pypdf import PdfReader
+
         try:
             reader = PdfReader(pdf_file)
             text = ""

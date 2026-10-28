@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_router
@@ -170,9 +170,14 @@ async def health_check():
         if settings.REDIS_URL:
             import redis
 
-            r = redis.from_url(settings.REDIS_URL)
-            r.ping()
-            health_status["services"]["redis"] = {"status": "healthy"}
+            # Use a short-lived client and close it again: creating a client
+            # per request leaks connection pools.
+            r = redis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+            try:
+                r.ping()
+                health_status["services"]["redis"] = {"status": "healthy"}
+            finally:
+                r.close()
         else:
             health_status["services"]["redis"] = {"status": "not_configured"}
     except Exception as e:
@@ -201,7 +206,12 @@ async def health_check():
     except Exception as e:
         health_status["services"]["cache"] = {"status": "error", "error": str(e)}
 
-    return health_status
+    # The database is mandatory: report an unhealthy status code so load
+    # balancers and orchestrators can react. Redis/Celery stay advisory.
+    if health_status["services"].get("database", {}).get("status") != "healthy":
+        health_status["status"] = "unhealthy"
+
+    return JSONResponse(status_code=200 if health_status["status"] != "unhealthy" else 503, content=health_status)
 
 
 # Mount static files

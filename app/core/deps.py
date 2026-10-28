@@ -30,7 +30,7 @@ async def get_user_by_api_key(
     if not api_key:
         return None
 
-    result = await db.execute(select(User).filter(User.api_key == api_key))
+    result = await db.execute(select(User).filter(User.api_key == api_key, User.is_active.is_(True)))
     return result.scalar_one_or_none()
 
 
@@ -72,6 +72,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Db
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is inactive",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

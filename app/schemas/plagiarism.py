@@ -44,7 +44,12 @@ class PlagiarismCheckRequest(BaseModel):
         max_length=100000,
         description="Manuscript text to check for plagiarism",
     )
-    threshold: Optional[float] = Field(default=0.5, ge=0.1, le=0.95, description="Similarity threshold (0.1-0.95)")
+    threshold: Optional[float] = Field(
+        default=None,
+        ge=0.1,
+        le=0.95,
+        description="Similarity threshold (0.1-0.95); defaults to the server configuration",
+    )
 
 
 class PlagiarismIndexStats(BaseModel):

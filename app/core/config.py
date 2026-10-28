@@ -46,13 +46,18 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
-        if not v or len(v) < 32:
+        normalized = v.strip()
+        if not normalized or len(normalized) < 32:
             raise ValueError(
                 "SECRET_KEY is required and must be at least 32 characters. "
                 "Set it via the SECRET_KEY environment variable. "
                 'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
-        return v
+        if normalized == "your-secret-key-here-change-in-production":
+            raise ValueError("SECRET_KEY must not use the example placeholder value")
+        if len(set(normalized)) < 8:
+            raise ValueError("SECRET_KEY must contain sufficient entropy; generate a random value")
+        return normalized
 
     # CORS — override via env: ALLOWED_ORIGINS='["https://app.example.com"]'
     # or comma-separated: ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
@@ -73,12 +78,17 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
-    # File Upload
+    # File Upload and manuscript input
     MAX_FILE_SIZE_MB: int = 50
+    MAX_MANUSCRIPT_CHARS: int = 200_000
 
     # Rate Limiting
     RATE_LIMIT_ANON: str = "60/hour"
     RATE_LIMIT_USER: str = "100/hour"
+
+    # Reverse proxies whose X-Forwarded-For header may be trusted. Leave empty
+    # to always use the direct peer address.
+    TRUSTED_PROXIES: Annotated[List[str], NoDecode] = []
 
     # Redis Cache
     REDIS_URL: str = ""

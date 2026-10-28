@@ -11,6 +11,7 @@ from contextvars import ContextVar
 from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Optional
+from urllib.parse import urlencode
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -24,6 +25,24 @@ request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=Non
 def get_request_id() -> Optional[str]:
     """Get the current request ID from context."""
     return request_id_var.get()
+
+
+def _safe_request_id(candidate: Optional[str]) -> str:
+    """Accept a bounded, single-line request ID or generate a safe one."""
+    if candidate:
+        normalized = candidate.strip()
+        if normalized and len(normalized) <= 128 and all(32 <= ord(char) < 127 for char in normalized):
+            return normalized
+    return str(uuid.uuid4())
+
+
+def _safe_query_string(query_params: Any) -> str:
+    """Redact secret query values before they are written to logs."""
+    sensitive_names = {"token", "password", "secret", "api_key", "apikey", "code"}
+    redacted = []
+    for name, value in query_params.multi_items():
+        redacted.append((name, "[REDACTED]" if name.lower() in sensitive_names else value))
+    return urlencode(redacted)
 
 
 class JSONFormatter(logging.Formatter):
@@ -149,8 +168,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     EXCLUDE_PATHS = {"/health", "/docs", "/redoc", "/openapi.json", "/api/openapi.json"}
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        # Generate or extract request ID
-        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        # Generate or extract a validated request ID
+        request_id = _safe_request_id(request.headers.get("X-Request-ID"))
         request_id_var.set(request_id)
 
         # Skip logging for excluded paths
@@ -169,7 +188,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "extra_data": {
                     "method": request.method,
                     "path": request.url.path,
-                    "query": str(request.query_params),
+                    "query": _safe_query_string(request.query_params),
                     "client_ip": request.client.host if request.client else None,
                     "user_agent": request.headers.get("user-agent", ""),
                 }

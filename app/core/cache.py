@@ -131,7 +131,9 @@ class AIResultCache:
         try:
             if REDIS_AVAILABLE and redis_client:
                 pattern = f"{AIResultCache.KEY_PREFIX}:*"
-                keys = redis_client.keys(pattern)
+                # SCAN instead of KEYS: KEYS blocks the Redis server while it
+                # walks the whole keyspace.
+                keys = list(redis_client.scan_iter(match=pattern, count=500))
                 if keys:
                     redis_client.delete(*keys)
                 logger.info(f"Cleared {len(keys)} Redis cache entries")
@@ -272,7 +274,9 @@ def invalidate_cache(pattern: str = "*") -> int:
     count = 0
     try:
         if REDIS_AVAILABLE and redis_client:
-            keys = redis_client.keys(pattern)
+            # SCAN instead of KEYS: KEYS blocks the Redis server while it
+            # walks the whole keyspace.
+            keys = list(redis_client.scan_iter(match=pattern, count=500))
             if keys:
                 count = redis_client.delete(*keys)
         else:

@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- Access tokens can no longer be minted from a refresh token: `decode_access_token()` now
+  requires `type == "access"`.
+- Every issued token carries a `jti`, and access-token decoding honours the blacklist, so
+  logout actually revokes the access token.
+- Inactive users can no longer log in, and previously issued tokens stop working once the
+  account is deactivated (JWT and API-key paths).
+- Passwords are SHA-256 pre-hashed before bcrypt, so passwords longer than bcrypt's 72-byte
+  limit no longer raise `ValueError`; legacy raw bcrypt hashes stay verifiable.
+- `SECRET_KEY` is validated at startup (minimum 32 characters, minimum 8 distinct characters,
+  example placeholder rejected).
+- HTTP error responses keep their protocol headers (`WWW-Authenticate`, `Retry-After`).
+- Request IDs are sanitised and sensitive query parameters (`token`, `password`, `secret`,
+  `api_key`, `apikey`, `code`) are redacted from the request logs.
+- Plagiarism comparisons are scoped to the requesting user's own documents.
+- Dependency upgrades: FastAPI 0.162, Starlette 1.10, PyJWT 2.15 (replaces `python-jose`),
+  pypdf 6.21, python-multipart 0.0.32, sentence-transformers 5.6, torch 2.14, cryptography 50.
+  Known advisories dropped from 266 (21 packages) to 10 (transformers 4.x only).
+
+### Fixed
+- Manuscripts are no longer truncated to 10,000 characters; the limit is now an explicit
+  `MAX_MANUSCRIPT_CHARS` (200,000) and oversized submissions return `413`.
+- The Celery task receives only the analysis id — manuscript text is no longer copied into the
+  broker message or the result metadata (`result_extended=False`).
+- The plagiarism threshold from the request (or `PLAGIARISM_THRESHOLD`) is honoured, and the
+  detector compares with `>=` instead of the previous hard-coded value.
+- Language detection, citation analysis and plagiarism results are produced by the background
+  task and persisted (`language_info`, `plagiarism_result`); the analysis response exposes
+  `language`, `plagiarism` and `citation_analysis`.
+- Document fingerprints are created for every successful analysis and used to rebuild the
+  plagiarism index.
+- Reviewer suggestions no longer trigger an async lazy load (`MissingGreenlet`): reviewer
+  profiles are eager-loaded with `selectinload`.
+- The manuscript embedding is computed once per matching request instead of once per reviewer.
+- The manuscript author can no longer be assigned as a reviewer of their own manuscript, and
+  reviewer-assignment status transitions are validated.
+- ORCID identifiers are validated against the ISO 7064 checksum format.
+- The demo endpoint reports the detected language and citation analysis.
+- Stale analyses are marked as failed by a scheduled Celery Beat task.
+- The test suite no longer hangs at exit (the async test engine is disposed) and uses a
+  process-unique SQLite file so parallel runs cannot collide.
+
+### Changed
+- Readability metrics (Flesch Reading Ease, Flesch-Kincaid, ARI) are computed locally with
+  `pyphen` and a regex sentence splitter; `textstat` and `nltk` were removed because they could
+  not be imported reliably in the locked environment.
+- `pypdf` is imported lazily so PDF support does not slow down application startup.
+- CI now runs `pip-audit` and an Alembic migration/schema-drift check in addition to linting
+  and tests.
+
+### Added
+- Regression tests for authentication, token revocation, password handling, secret validation,
+  error headers, log hygiene, plagiarism thresholds/tenant isolation and reviewer matching.
+- Alembic revision `007_analysis_enhancements` adding the `language_info` and
+  `plagiarism_result` columns.
+
 ## [2.1.0] - 2025-12-22
 
 ### Added

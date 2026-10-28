@@ -4,6 +4,7 @@ Background tasks for manuscript analysis.
 
 import logging
 import time
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -12,9 +13,14 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery_app
 from app.core.cache import AIResultCache
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.analysis import ManuscriptAnalysis, ProcessingError
+from app.models.document_fingerprint import DocumentFingerprint
 from app.services.ai_processor import ManuscriptPreReviewer
+from app.services.citation_analyzer import get_citation_analyzer
+from app.services.language_detector import get_language_detector
+from app.services.plagiarism_detector import get_plagiarism_detector
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +74,7 @@ def log_processing_error(
     retry_backoff_max=RETRY_BACKOFF_MAX,
     retry_jitter=RETRY_JITTER,
 )
-def process_manuscript_task(self, analysis_id: int, text: str):
+def process_manuscript_task(self, analysis_id: int):
     """
     Background task to process manuscript analysis.
 
@@ -81,6 +87,7 @@ def process_manuscript_task(self, analysis_id: int, text: str):
     db: Session = SessionLocal()
     start_time = time.time()
     analysis: Optional[ManuscriptAnalysis] = None
+    text = ""
 
     try:
         # Get analysis record
@@ -108,9 +115,55 @@ def process_manuscript_task(self, analysis_id: int, text: str):
 
         logger.info(f"Starting analysis for ID {analysis_id} (attempt {retry_count + 1}/{self.max_retries + 1})")
 
+        # Load content from the database rather than carrying it in the task
+        # payload, broker message, and Celery result metadata.
+        text = analysis.manuscript_text
+        if not text:
+            raise ValueError("Analysis manuscript text is empty")
+
         # Run AI processing
         processor = get_pre_reviewer()
         report = processor.generate_report(text)
+
+        # Enhancement failures should not discard the core analysis result.
+        try:
+            language = get_language_detector().detect_language(text)
+            analysis.detected_language = language.code
+            analysis.language_info = asdict(language)
+        except Exception as exc:
+            logger.warning("Language detection failed for analysis %s: %s", analysis_id, exc)
+
+        if settings.ENABLE_CITATION_ANALYSIS:
+            try:
+                analysis.citation_analysis = asdict(get_citation_analyzer().analyze(text))
+            except Exception as exc:
+                logger.warning("Citation analysis failed for analysis %s: %s", analysis_id, exc)
+
+        if settings.ENABLE_PLAGIARISM_CHECK:
+            try:
+                detector = get_plagiarism_detector()
+                plagiarism_result = detector.check_similarity_with_database(
+                    text=text,
+                    db=db,
+                    exclude_id=analysis.id,
+                    user_id=analysis.user_id,
+                    threshold=settings.PLAGIARISM_THRESHOLD,
+                )
+                analysis.plagiarism_result = asdict(plagiarism_result)
+
+                fingerprint = detector.create_fingerprint_data(text)
+                if fingerprint:
+                    if analysis.fingerprint:
+                        analysis.fingerprint.fingerprint_hash = fingerprint.fingerprint_hash
+                        analysis.fingerprint.shingles = fingerprint.shingles
+                    else:
+                        analysis.fingerprint = DocumentFingerprint(
+                            fingerprint_hash=fingerprint.fingerprint_hash,
+                            shingles=fingerprint.shingles,
+                        )
+            except Exception as exc:
+                logger.warning("Plagiarism analysis failed for analysis %s: %s", analysis_id, exc)
+
         processing_time = time.time() - start_time
 
         # Update record with results

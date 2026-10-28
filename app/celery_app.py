@@ -31,7 +31,7 @@ celery_app.conf.update(
     task_max_retries=3,  # Max 3 retries by default
     # Result backend settings
     result_expires=86400,  # Results expire after 24 hours
-    result_extended=True,  # Store task args and kwargs in result
+    result_extended=False,  # Avoid retaining task arguments in result metadata
     # Worker settings
     worker_prefetch_multiplier=1,  # Fetch one task at a time (fair distribution)
     worker_max_tasks_per_child=100,  # Restart worker after 100 tasks (prevent memory leaks)
@@ -44,6 +44,13 @@ celery_app.conf.update(
     task_default_queue="default",
     task_routes={
         "app.tasks.analysis.*": {"queue": "analysis"},
+    },
+    beat_schedule={
+        "cleanup-stale-analyses": {
+            "task": "app.tasks.analysis.cleanup_stale_analyses",
+            "schedule": 3600.0,
+            "kwargs": {"hours": 24},
+        },
     },
 )
 
