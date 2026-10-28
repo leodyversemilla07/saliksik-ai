@@ -13,6 +13,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.responses import COMMON_RESPONSES
 from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession
 from app.core.email import send_verification_email_async_safe
@@ -83,7 +84,7 @@ def _send_verification_email_background(email: str, username: str, token: str) -
     loop.run_in_executor(None, send_verification_email_async_safe, email, username, token)
 
 
-@router.post("/api-key", response_model=ApiKeyResponse)
+@router.post("/api-key", response_model=ApiKeyResponse, responses=COMMON_RESPONSES)
 async def get_or_create_api_key(current_user: CurrentUser, db: DbSession):
     """
     Generate or get current API Key.
@@ -100,7 +101,7 @@ async def get_or_create_api_key(current_user: CurrentUser, db: DbSession):
     )
 
 
-@router.post("/api-key/rotate", response_model=ApiKeyRotateResponse)
+@router.post("/api-key/rotate", response_model=ApiKeyRotateResponse, responses=COMMON_RESPONSES)
 async def rotate_api_key(current_user: CurrentUser, db: DbSession):
     """
     Rotate (revoke and regenerate) API Key.
@@ -118,7 +119,7 @@ async def rotate_api_key(current_user: CurrentUser, db: DbSession):
     )
 
 
-@router.delete("/api-key")
+@router.delete("/api-key", responses=COMMON_RESPONSES)
 async def revoke_api_key(current_user: CurrentUser, db: DbSession):
     """
     Revoke (delete) API Key without generating a new one.
@@ -286,13 +287,13 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
     )
 
 
-@router.get("/profile", response_model=UserResponse)
+@router.get("/profile", response_model=UserResponse, responses=COMMON_RESPONSES)
 async def get_profile(current_user: CurrentUser):
     """Get current user profile."""
     return UserResponse.model_validate(current_user)
 
 
-@router.put("/profile", response_model=UserResponse)
+@router.put("/profile", response_model=UserResponse, responses=COMMON_RESPONSES)
 async def update_profile(request: UserProfileUpdate, current_user: CurrentUser, db: DbSession):
     """
     Update the current user profile.
@@ -311,7 +312,7 @@ async def update_profile(request: UserProfileUpdate, current_user: CurrentUser, 
     return UserResponse.model_validate(current_user)
 
 
-@router.post("/refresh", response_model=RefreshTokenResponse)
+@router.post("/refresh", response_model=RefreshTokenResponse, responses=COMMON_RESPONSES)
 async def refresh_access_token(request: RefreshTokenRequest, db: DbSession):
     """
     Get a new access token using a refresh token.
@@ -354,7 +355,7 @@ async def refresh_access_token(request: RefreshTokenRequest, db: DbSession):
     )
 
 
-@router.post("/logout")
+@router.post("/logout", responses=COMMON_RESPONSES)
 async def logout(
     current_user: CurrentUser,
     request: Optional[LogoutRequest] = None,
@@ -385,7 +386,7 @@ async def logout(
     }
 
 
-@router.post("/change-password")
+@router.post("/change-password", responses=COMMON_RESPONSES)
 async def change_password(request: PasswordChangeRequest, current_user: CurrentUser, db: DbSession):
     """
     Change user password. Requires current password verification.

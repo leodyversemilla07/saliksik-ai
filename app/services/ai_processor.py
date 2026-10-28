@@ -1,10 +1,12 @@
 import logging
 import re
+from typing import Optional
 
 import spacy
 from pyphen import Pyphen
 
 from app.core.config import settings
+from app.core.nlp_models import NLPModelManager
 
 try:
     from transformers import AutoTokenizer, pipeline
@@ -36,9 +38,12 @@ def split_sentences(text: str) -> list[str]:
 
 
 class ManuscriptPreReviewer:
-    def __init__(self):
+    def __init__(self, language: str = "en"):
         # Light mode avoids heavy model loading (for tests/CI or constrained environments)
         self.light_mode = settings.AI_LIGHT_MODE
+
+        # Language used for the spaCy pipeline (keyword/grammar helpers).
+        self.language = language
 
         # Lazy-loaded components
         self._nlp = None
@@ -51,13 +56,23 @@ class ManuscriptPreReviewer:
         else:
             self._yake_extractor = None
 
+    def set_language(self, language: Optional[str]) -> None:
+        """Switch the NLP pipeline to another language."""
+        if not language:
+            return
+        normalized = language.lower()
+        if normalized != self.language:
+            self.language = normalized
+            self._nlp = None  # force a reload for the new language
+
     @property
     def nlp(self):
         if self._nlp is None:
-            try:
-                self._nlp = spacy.load("en_core_web_sm")
-            except OSError:
-                logger.warning("spaCy model 'en_core_web_sm' not found. Falling back to blank 'en' model.")
+            # The manager caches one model per language and falls back to a
+            # blank pipeline when the language model is not installed.
+            self._nlp = NLPModelManager.get_model(self.language)
+            if self._nlp is None:
+                logger.warning("No spaCy model for language '%s'. Falling back to blank 'en' model.", self.language)
                 self._nlp = spacy.blank("en")
         return self._nlp
 

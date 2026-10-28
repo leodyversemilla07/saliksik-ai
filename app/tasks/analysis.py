@@ -121,17 +121,22 @@ def process_manuscript_task(self, analysis_id: int):
         if not text:
             raise ValueError("Analysis manuscript text is empty")
 
-        # Run AI processing
         processor = get_pre_reviewer()
-        report = processor.generate_report(text)
 
-        # Enhancement failures should not discard the core analysis result.
-        try:
-            language = get_language_detector().detect_language(text)
-            analysis.detected_language = language.code
-            analysis.language_info = asdict(language)
-        except Exception as exc:
-            logger.warning("Language detection failed for analysis %s: %s", analysis_id, exc)
+        # Detect the language first so the NLP pipeline can use a matching
+        # model. Enhancement failures should not discard the core analysis.
+        language = None
+        if settings.AUTO_DETECT_LANGUAGE:
+            try:
+                language = get_language_detector().detect_language(text)
+                analysis.detected_language = language.code
+                analysis.language_info = asdict(language)
+                processor.set_language(language.code)
+            except Exception as exc:
+                logger.warning("Language detection failed for analysis %s: %s", analysis_id, exc)
+
+        # Run AI processing
+        report = processor.generate_report(text)
 
         if settings.ENABLE_CITATION_ANALYSIS:
             try:

@@ -35,6 +35,9 @@ celery_app.conf.update(
     # Worker settings
     worker_prefetch_multiplier=1,  # Fetch one task at a time (fair distribution)
     worker_max_tasks_per_child=100,  # Restart worker after 100 tasks (prevent memory leaks)
+    # Eager execution runs tasks in the calling process (development/tests only).
+    task_always_eager=settings.CELERY_TASK_ALWAYS_EAGER,
+    task_eager_propagates=settings.CELERY_TASK_ALWAYS_EAGER,
     # Queue configuration
     task_queues=(
         Queue("default", routing_key="default"),

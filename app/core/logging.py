@@ -88,6 +88,17 @@ class StandardFormatter(logging.Formatter):
         return super().format(record)
 
 
+def _configured_level() -> int:
+    """Resolve the log level from LOG_LEVEL (DEBUG overrides it in dev mode)."""
+    if settings.DEBUG:
+        return logging.DEBUG
+
+    level = getattr(logging, str(settings.LOG_LEVEL).upper(), None)
+    if isinstance(level, int):
+        return level
+    return logging.INFO
+
+
 def setup_logging(json_format: bool = False) -> None:
     """
     Configure application logging.
@@ -95,15 +106,17 @@ def setup_logging(json_format: bool = False) -> None:
     Args:
         json_format: Use JSON format (recommended for production)
     """
+    level = _configured_level()
+
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG if settings.DEBUG else logging.INFO)
+    root_logger.setLevel(level)
 
     # Remove existing handlers
     root_logger.handlers.clear()
 
     # Create console handler
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG if settings.DEBUG else logging.INFO)
+    handler.setLevel(level)
 
     if json_format:
         handler.setFormatter(JSONFormatter())

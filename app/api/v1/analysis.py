@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 
+from app.api.responses import COMMON_RESPONSES
 from app.core.cache import AIResultCache
 from app.core.config import settings
 from app.core.deps import (
@@ -47,7 +48,7 @@ pre_reviewer = ManuscriptPreReviewer()
 _demo_analysis_lock = asyncio.Lock()
 
 
-@router.post("/pre-review", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/pre-review", status_code=status.HTTP_202_ACCEPTED, responses=COMMON_RESPONSES)
 async def pre_review(
     db: DbSession,
     current_user: AuthenticatedUser,
@@ -164,7 +165,7 @@ async def pre_review(
         )
 
 
-@router.get("/status/{task_id}")
+@router.get("/status/{task_id}", responses=COMMON_RESPONSES)
 async def get_analysis_status(task_id: str, db: DbSession, current_user: AuthenticatedUser):
     """Check the status of an analysis task."""
     stmt = select(ManuscriptAnalysis).filter(
@@ -260,17 +261,19 @@ async def demo_analysis(request: DemoAnalysisRequest):
 
         # Generate analysis (CPU/GPU bound work runs in a worker thread)
         logger.info(f"Processing demo manuscript ({len(manuscript_text)} chars)")
+        language = None
+        citation_analysis = None
         async with _demo_analysis_lock:
+            try:
+                language_info = await asyncio.to_thread(get_language_detector().detect_language, manuscript_text)
+                language = LanguageInfo(**asdict(language_info))
+                pre_reviewer.set_language(language_info.code)
+            except Exception as exc:
+                logger.warning("Demo language detection failed: %s", exc)
+
             report = await asyncio.to_thread(pre_reviewer.generate_report, manuscript_text)
         processing_time = time.time() - start_time
 
-        language = None
-        citation_analysis = None
-        try:
-            language_info = await asyncio.to_thread(get_language_detector().detect_language, manuscript_text)
-            language = LanguageInfo(**asdict(language_info))
-        except Exception as exc:
-            logger.warning("Demo language detection failed: %s", exc)
         if settings.ENABLE_CITATION_ANALYSIS:
             try:
                 citation = await asyncio.to_thread(get_citation_analyzer().analyze, manuscript_text)
@@ -305,7 +308,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
         )
 
 
-@router.get("/history", response_model=AnalysisHistoryResponse)
+@router.get("/history", response_model=AnalysisHistoryResponse, responses=COMMON_RESPONSES)
 async def get_history(db: DbSession, current_user: AuthenticatedUser, page: int = 1, page_size: int = 20):
     """Get user's analysis history with pagination."""
 
@@ -358,14 +361,14 @@ async def get_history(db: DbSession, current_user: AuthenticatedUser, page: int 
     )
 
 
-@router.get("/cache/stats")
+@router.get("/cache/stats", responses=COMMON_RESPONSES)
 async def cache_stats(current_user: AdminUser):
     """Get cache statistics (admin only)."""
     stats = AIResultCache.get_cache_stats()
     return {"cache": stats, "message": "Cache statistics retrieved successfully"}
 
 
-@router.post("/cache/clear")
+@router.post("/cache/clear", responses=COMMON_RESPONSES)
 async def clear_cache(current_user: AdminUser):
     """Clear cache (admin only)."""
     success = AIResultCache.clear_all_cache()

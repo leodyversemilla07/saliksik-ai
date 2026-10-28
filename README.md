@@ -181,7 +181,8 @@ Access:
 | `/api/v1/analysis/demo` | POST | No | Public demo (5000 char limit) |
 | `/api/v1/analysis/history` | GET | Yes | View past analyses |
 | `/api/v1/plagiarism/check` | POST | Yes | Check for plagiarism |
-| `/api/v1/reviewers/suggest` | POST | Yes | Get reviewer suggestions |
+| `/api/v1/citations/analyze` | POST | Yes | Analyse citations and references |
+| `/api/v1/reviewers/analysis/{id}/suggestions` | GET | Yes | Get reviewer suggestions |
 | `/health` | GET | No | System health check |
 
 For full API documentation, see [docs/API_REFERENCE.md](docs/API_REFERENCE.md) or the interactive Swagger UI at `/docs`.
@@ -198,11 +199,10 @@ saliksik-ai/
 │   ├── models/           # SQLAlchemy ORM models
 │   ├── schemas/          # Pydantic request/response schemas
 │   ├── services/         # Business logic (AI, plagiarism, citations, reviewers)
-│   ├── tasks/            # Celery background tasks
-│   └── utils/            # Utilities (migrations)
+│   └── tasks/            # Celery background tasks
 ├── alembic/              # Database migrations
 ├── docs/                 # Project documentation
-├── tests/                # Test suite (80+ tests)
+├── tests/                # Test suite (130+ tests)
 ├── .github/workflows/    # CI pipeline
 ├── main.py               # FastAPI entry point
 ├── pyproject.toml        # Project metadata and dependencies

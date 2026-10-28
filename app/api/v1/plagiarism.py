@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.api.responses import COMMON_RESPONSES
 from app.core.config import settings
 from app.core.deps import (
     AdminUser,
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/check", response_model=PlagiarismResult)
+@router.post("/check", response_model=PlagiarismResult, responses=COMMON_RESPONSES)
 async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, current_user: AuthenticatedUser):
     """
     Check manuscript text for plagiarism against stored documents.
@@ -86,7 +87,7 @@ async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, curre
         )
 
 
-@router.get("/stats", response_model=PlagiarismIndexStats)
+@router.get("/stats", response_model=PlagiarismIndexStats, responses=COMMON_RESPONSES)
 async def get_plagiarism_stats(current_user: AuthenticatedUser):
     """
     Get plagiarism detection index statistics.
@@ -102,7 +103,7 @@ async def get_plagiarism_stats(current_user: AuthenticatedUser):
     return PlagiarismIndexStats(**stats)
 
 
-@router.post("/index/rebuild")
+@router.post("/index/rebuild", responses=COMMON_RESPONSES)
 async def rebuild_plagiarism_index(db: DbSession, current_user: AdminUser):
     """
     Rebuild the plagiarism detection index from database.

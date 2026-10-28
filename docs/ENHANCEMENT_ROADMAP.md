@@ -2,8 +2,15 @@
 
 Tracking document for enhancements to Saliksik AI.
 
-> **Last Updated**: 2025-12-22  
-> **Version**: 2.1.0 (All enhancements implemented)
+> **Last Updated**: 2026-10-28  
+> **Version**: 2.1.0 (enhancements implemented and wired into the API/task pipeline)
+>
+> The four enhancement areas below are implemented end-to-end: the plagiarism
+> detector, citation analyzer, reviewer matcher and language detector are called
+> from the Celery task, their results are persisted and returned by the analysis
+> endpoints, and each area has regression tests. The unchecked items below are
+> genuine follow-ups (external plagiarism APIs, a multilingual summariser,
+> LanguageTool integration, an admin UI).
 
 ---
 
@@ -40,13 +47,13 @@ This document tracks planned enhancements to extend Saliksik AI's capabilities b
 Add similarity checking to detect potential plagiarism in submitted manuscripts by comparing against a database of existing documents and/or external sources.
 
 #### Implementation Approach
-- [ ] Research plagiarism detection algorithms (MinHash, SimHash, cosine similarity)
-- [ ] Implement text fingerprinting using n-grams
-- [ ] Create local document database for comparison
+- [x] Research plagiarism detection algorithms (MinHash, SimHash, cosine similarity)
+- [x] Implement text fingerprinting using n-grams
+- [x] Create local document database for comparison
 - [ ] Integrate with external APIs (optional: Copyscape, Turnitin API)
-- [ ] Add similarity percentage to analysis response
+- [x] Add similarity percentage to analysis response
 - [ ] Create highlighted report showing matching sections
-- [ ] Add configuration for similarity threshold
+- [x] Add configuration for similarity threshold
 
 #### Technical Components
 ```
@@ -90,13 +97,13 @@ app/
 Parse and analyze references/citations in manuscripts to validate formatting, check for missing citations, and provide citation statistics.
 
 #### Implementation Approach
-- [ ] Implement reference section detection
-- [ ] Parse common citation formats (APA, MLA, Chicago, IEEE)
-- [ ] Extract citation metadata (authors, year, title, journal)
-- [ ] Validate citation format consistency
-- [ ] Count self-citations vs external citations
-- [ ] Check for in-text citation matches with reference list
-- [ ] Identify potentially outdated references (configurable threshold)
+- [x] Implement reference section detection
+- [x] Parse common citation formats (APA, MLA, Chicago, IEEE)
+- [x] Extract citation metadata (authors, year, title, journal)
+- [x] Validate citation format consistency
+- [x] Count self-citations vs external citations
+- [x] Check for in-text citation matches with reference list
+- [x] Identify potentially outdated references (configurable threshold)
 - [ ] Optional: DOI/CrossRef verification
 
 #### Technical Components
@@ -159,13 +166,13 @@ app/
 Automatically suggest appropriate reviewers based on manuscript keywords, topics, and reviewer expertise profiles.
 
 #### Implementation Approach
-- [ ] Create reviewer profile model with expertise areas
-- [ ] Implement expertise keyword matching
-- [ ] Build topic embedding comparison (using sentence transformers)
-- [ ] Consider reviewer workload and availability
-- [ ] Account for conflict of interest checks
-- [ ] Implement matching score algorithm
-- [ ] Create reviewer recommendation ranking
+- [x] Create reviewer profile model with expertise areas
+- [x] Implement expertise keyword matching
+- [x] Build topic embedding comparison (using sentence transformers)
+- [x] Consider reviewer workload and availability
+- [x] Account for conflict of interest checks
+- [x] Implement matching score algorithm
+- [x] Create reviewer recommendation ranking
 - [ ] Add admin interface for reviewer management
 
 #### Technical Components
@@ -235,8 +242,8 @@ class ReviewerMatch(Base):
 Extend language support beyond English to detect manuscript language and provide appropriate analysis using language-specific NLP models.
 
 #### Implementation Approach
-- [ ] Implement automatic language detection
-- [ ] Load appropriate spaCy models per language
+- [x] Implement automatic language detection
+- [x] Load appropriate spaCy models per language
 - [ ] Use multilingual summarization model (mBART or mT5)
 - [ ] Adapt readability metrics for different languages
 - [ ] Configure LanguageTool for detected language

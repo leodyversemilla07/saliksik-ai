@@ -97,6 +97,8 @@ class Settings(BaseSettings):
     # Celery
     CELERY_BROKER_URL: str = ""
     CELERY_RESULT_BACKEND: str = ""
+    # Run tasks synchronously in the API process (development and tests only).
+    CELERY_TASK_ALWAYS_EAGER: bool = False
 
     # AI Configuration
     AI_LIGHT_MODE: bool = False
@@ -111,6 +113,9 @@ class Settings(BaseSettings):
     SUPPORTED_LANGUAGES: str = "en,es,fr,de"  # Comma-separated
     DEFAULT_LANGUAGE: str = "en"
     AUTO_DETECT_LANGUAGE: bool = True
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
 
     # Email / SMTP
     SMTP_HOST: str = ""

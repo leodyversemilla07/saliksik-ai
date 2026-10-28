@@ -196,10 +196,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Rate limit exceeded for {client_id}")
             # Middleware runs outside FastAPI's exception handlers, so return
             # a response directly instead of raising HTTPException (which
-            # would surface as a 500).
+            # would surface as a 500). The body uses the same error envelope
+            # as every other endpoint.
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={"detail": "Rate limit exceeded. Please try again later."},
+                content={
+                    "error": {
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "message": f"Rate limit exceeded. Try again in {window_seconds} seconds.",
+                    }
+                },
                 headers={
                     "X-RateLimit-Limit": str(max_requests),
                     "X-RateLimit-Remaining": "0",

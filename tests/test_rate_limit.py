@@ -123,6 +123,7 @@ async def test_rate_limit_exceeded_returns_429(client):
         response = await client.get("/api/v1/info")
 
     assert response.status_code == 429
-    assert response.json()["detail"] == "Rate limit exceeded. Please try again later."
+    assert response.json()["error"]["code"] == "RATE_LIMIT_EXCEEDED"
+    assert "Rate limit exceeded" in response.json()["error"]["message"]
     assert response.headers["X-RateLimit-Remaining"] == "0"
     assert "Retry-After" in response.headers

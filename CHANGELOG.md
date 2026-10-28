@@ -46,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ORCID identifiers are validated against the ISO 7064 checksum format.
 - The demo endpoint reports the detected language and citation analysis.
 - Stale analyses are marked as failed by a scheduled Celery Beat task.
+- Rate-limit responses use the standard error envelope.
+- The health endpoint returns `503` when the database is unreachable and no longer leaks a Redis
+  connection per request.
+- `X-Forwarded-For` is only trusted when the direct peer is listed in `TRUSTED_PROXIES`.
+- The cache invalidation uses `SCAN` instead of `KEYS`, so it no longer blocks Redis.
+- Model inference (summarisation, embeddings, citation parsing) runs in a worker thread instead
+  of blocking the event loop.
+- `LOG_LEVEL` and `CELERY_TASK_ALWAYS_EAGER` are now honoured by the logging setup and the Celery
+  configuration.
+- Removed the unused `app/utils/migration.py` helper.
 - The test suite no longer hangs at exit (the async test engine is disposed) and uses a
   process-unique SQLite file so parallel runs cannot collide.
 
@@ -58,17 +68,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and tests.
 
 ### Added
+- `POST /api/v1/citations/analyze` for on-demand citation analysis (style detection, reference
+  parsing, in-text cross-check, issue reporting).
+- Multi-language analysis: the NLP model manager is used by the pre-review service, the detected
+  language selects the spaCy pipeline, and the worker switches the pipeline per manuscript.
+- `PUT /api/v1/auth/profile` to set the account affiliation, and an optional `institution`
+  field on registration and in the user response.
+- Reviewer assignments now fail with `409 Conflict` when the reviewer shares the author's
+  institution, and such reviewers are filtered out of the suggestions.
+- Reviewers that reached their assignment limit are no longer suggested.
+- Shared OpenAPI response documentation (`app/api/responses.py`) that describes the real error
+  envelope; the module is now used by every router.
 - Regression tests for authentication, token revocation, password handling, secret validation,
   error headers, log hygiene, plagiarism thresholds/tenant isolation and reviewer matching.
 - Alembic revision `007_analysis_enhancements` adding the `language_info` and
   `plagiarism_result` columns.
 - Alembic revision `008_user_institution` adding the author affiliation used for reviewer
   conflict-of-interest checks.
-- `PUT /api/v1/auth/profile` to set the account affiliation, and an optional `institution`
-  field on registration and in the user response.
-- Reviewer assignments now fail with `409 Conflict` when the reviewer shares the author's
-  institution, and such reviewers are filtered out of the suggestions.
-- Reviewers that reached their assignment limit are no longer suggested.
 
 ## [2.1.0] - 2025-12-22
 

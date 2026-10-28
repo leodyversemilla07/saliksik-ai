@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
+from app.api.responses import COMMON_RESPONSES
 from app.core.config import settings
 from app.core.deps import AuthenticatedUser, DbSession
 from app.core.security_utils import sanitize_keywords, sanitize_string
@@ -70,7 +71,7 @@ def _reviewer_to_public_response(reviewer: Reviewer) -> ReviewerPublicResponse:
     )
 
 
-@router.post("/", response_model=ReviewerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ReviewerResponse, status_code=status.HTTP_201_CREATED, responses=COMMON_RESPONSES)
 async def create_reviewer_profile(request: ReviewerCreate, db: DbSession, current_user: AuthenticatedUser):
     """
     Create a reviewer profile for the current user.
@@ -136,7 +137,7 @@ async def create_reviewer_profile(request: ReviewerCreate, db: DbSession, curren
         )
 
 
-@router.get("/me", response_model=ReviewerResponse)
+@router.get("/me", response_model=ReviewerResponse, responses=COMMON_RESPONSES)
 async def get_my_reviewer_profile(db: DbSession, current_user: AuthenticatedUser):
     """Get the current user's reviewer profile."""
     stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
@@ -152,7 +153,7 @@ async def get_my_reviewer_profile(db: DbSession, current_user: AuthenticatedUser
     return _reviewer_to_response(reviewer)
 
 
-@router.put("/me", response_model=ReviewerResponse)
+@router.put("/me", response_model=ReviewerResponse, responses=COMMON_RESPONSES)
 async def update_my_reviewer_profile(request: ReviewerUpdate, db: DbSession, current_user: AuthenticatedUser):
     """Update the current user's reviewer profile."""
     stmt = select(Reviewer).filter(Reviewer.user_id == current_user.id)
@@ -208,7 +209,7 @@ async def update_my_reviewer_profile(request: ReviewerUpdate, db: DbSession, cur
         )
 
 
-@router.get("/", response_model=ReviewerListResponse)
+@router.get("/", response_model=ReviewerListResponse, responses=COMMON_RESPONSES)
 async def list_reviewers(
     db: DbSession,
     current_user: AuthenticatedUser,
@@ -263,7 +264,11 @@ async def list_reviewers(
     )
 
 
-@router.get("/analysis/{analysis_id}/suggestions", response_model=ReviewerSuggestionsResponse)
+@router.get(
+    "/analysis/{analysis_id}/suggestions",
+    response_model=ReviewerSuggestionsResponse,
+    responses=COMMON_RESPONSES,
+)
 async def get_reviewer_suggestions(
     analysis_id: int,
     db: DbSession,
@@ -365,7 +370,11 @@ async def get_reviewer_suggestions(
     )
 
 
-@router.post("/analysis/{analysis_id}/assign/{reviewer_id}", response_model=ReviewerMatchResponse)
+@router.post(
+    "/analysis/{analysis_id}/assign/{reviewer_id}",
+    response_model=ReviewerMatchResponse,
+    responses=COMMON_RESPONSES,
+)
 async def assign_reviewer(
     analysis_id: int,
     reviewer_id: int,
@@ -493,7 +502,7 @@ async def assign_reviewer(
         )
 
 
-@router.get("/my-assignments", response_model=List[ReviewerMatchResponse])
+@router.get("/my-assignments", response_model=List[ReviewerMatchResponse], responses=COMMON_RESPONSES)
 async def get_my_assignments(
     db: DbSession,
     current_user: AuthenticatedUser,
@@ -534,7 +543,7 @@ async def get_my_assignments(
     ]
 
 
-@router.put("/assignments/{match_id}/status", response_model=ReviewerMatchResponse)
+@router.put("/assignments/{match_id}/status", response_model=ReviewerMatchResponse, responses=COMMON_RESPONSES)
 async def update_assignment_status(
     match_id: int,
     request: ReviewerMatchStatus,

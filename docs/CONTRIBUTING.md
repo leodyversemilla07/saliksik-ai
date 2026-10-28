@@ -248,8 +248,7 @@ app/
 ├── core/ # Core utilities, config
 ├── models/ # Database models
 ├── schemas/ # Pydantic schemas
-├── services/ # Business logic
-└── utils/ # Helper functions
+└── services/ # Business logic
 ```
 
 ---

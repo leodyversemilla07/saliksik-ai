@@ -104,3 +104,38 @@ def test_summary_handles_short_input(reviewer):
 
     assert isinstance(summary, str)
     assert summary.strip()
+
+
+def test_language_switching_reloads_the_pipeline(ai_processor_module):
+    instance = ai_processor_module.ManuscriptPreReviewer()
+    instance.light_mode = True
+
+    assert instance.language == "en"
+
+    instance.set_language("es")
+    assert instance.language == "es"
+    # The pipeline is reloaded for the new language.
+    assert instance._nlp is None
+
+    instance.set_language(None)
+    assert instance.language == "es"
+
+
+def test_nlp_manager_caches_models_and_falls_back(ai_processor_module):
+    manager = ai_processor_module.NLPModelManager
+
+    manager.clear_all()
+    first = manager.get_model("en")
+    second = manager.get_model("en")
+
+    assert first is not None
+    assert first is second
+    assert manager.is_model_loaded("en")
+    assert "en" in manager.get_loaded_languages()
+
+    # Unknown languages must not raise.
+    assert manager.get_model("zz") is None
+
+    assert manager.unload_model("en") is True
+    assert manager.unload_model("en") is False
+    manager.clear_all()

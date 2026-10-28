@@ -35,7 +35,8 @@ Create a new user account.
 {
  "username": "string (3-50 chars, required)",
  "email": "string (valid email, required)",
- "password": "string (min 8 chars, required)"
+ "password": "string (min 8 chars, required)",
+ "institution": "string (optional, max 255 chars)"
 }
 ```
 
@@ -43,12 +44,17 @@ Create a new user account.
 ```json
 {
  "access_token": "string",
+ "refresh_token": "string",
  "token_type": "bearer",
+ "expires_in": 60,
  "user": {
  "id": 1,
  "username": "editor1",
  "email": "editor@journal.com",
+ "role": "user",
+ "institution": null,
  "is_active": true,
+ "is_email_verified": false,
  "created_at": "2025-11-07T08:22:54Z",
  "last_login": null
  }
@@ -58,6 +64,7 @@ Create a new user account.
 **Error Responses:**
 - `400 Bad Request` - Username or email already exists
 - `400 Bad Request` - Validation error (password too short, invalid email, etc.)
+- `422 Unprocessable Entity` - Request validation failed
 
 ---
 
@@ -68,6 +75,8 @@ Authenticate and get JWT access token.
 **Endpoint:** `POST /api/v1/auth/login`
 
 **Authentication:** Not required
+
+**Content-Type:** `application/x-www-form-urlencoded` (OAuth2 password flow)
 
 **Request Body:**
 ```json
@@ -81,12 +90,17 @@ Authenticate and get JWT access token.
 ```json
 {
  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+ "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
  "token_type": "bearer",
+ "expires_in": 60,
  "user": {
  "id": 1,
  "username": "editor1",
  "email": "editor@journal.com",
+ "role": "user",
+ "institution": null,
  "is_active": true,
+ "is_email_verified": true,
  "created_at": "2025-11-07T08:22:54Z",
  "last_login": "2025-11-07T08:30:00Z"
  }
@@ -94,7 +108,138 @@ Authenticate and get JWT access token.
 ```
 
 **Error Responses:**
-- `401 Unauthorized` - Incorrect username or password
+- `401 Unauthorized` - Incorrect username or password, or inactive account
+- `423 Locked` - Too many failed attempts (account temporarily locked)
+
+---
+
+### Refresh Token
+
+Exchange a refresh token for a new token pair. The used refresh token is
+blacklisted (rotation); a refresh token can never be used as an access token.
+
+**Endpoint:** `POST /api/v1/auth/refresh`
+
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+ "refresh_token": "string (required)"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "access_token": "string",
+ "refresh_token": "string",
+ "token_type": "bearer",
+ "expires_in": 60
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid, expired or already used refresh token
+
+---
+
+### Logout
+
+Blacklist the access token (and optionally a refresh token).
+
+**Endpoint:** `POST /api/v1/auth/logout`
+
+**Authentication:** Required
+
+**Request Body (optional):**
+```json
+{
+ "refresh_token": "string (optional)"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "message": "Logged out successfully",
+ "tokens_blacklisted": 2
+}
+```
+
+---
+
+### API Key
+
+Create, rotate or revoke the API key used by the `X-API-Key` header.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/auth/api-key` | POST | Create the API key (returns the existing one if present) |
+| `/api/v1/auth/api-key/rotate` | POST | Issue a new key and revoke the previous one |
+| `/api/v1/auth/api-key` | DELETE | Revoke the current key |
+
+**Response (`POST /api/v1/auth/api-key`):** `200 OK`
+```json
+{
+ "api_key": "sk_...",
+ "created_at": "2025-11-07T08:22:54Z",
+ "message": "API key generated successfully"
+}
+```
+
+---
+
+### Verify Email
+
+Confirm an email address using the token from the verification mail. Without
+SMTP configured the token is written to the log instead of being mailed.
+
+**Endpoint:** `POST /api/v1/auth/verify-email`
+
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+ "token": "string (required)"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "message": "Email verified successfully",
+ "is_email_verified": true
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid or expired token, or the address is already verified
+
+---
+
+### Resend Verification
+
+Send a new verification mail.
+
+**Endpoint:** `POST /api/v1/auth/resend-verification`
+
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+ "email": "string (required)"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "message": "Verification email sent"
+}
+```
 
 ---
 
@@ -566,6 +711,77 @@ Get plagiarism detection index statistics.
 
 ---
 
+### Rebuild Plagiarism Index
+
+Reload the in-memory LSH index from the persisted document fingerprints.
+
+**Endpoint:** `POST /api/v1/plagiarism/index/rebuild`
+
+**Authentication:** Required (admin only)
+
+**Response:** `200 OK`
+```json
+{
+ "message": "Index rebuilt successfully",
+ "documents_indexed": 150,
+ "rebuilt_by": "admin1"
+}
+```
+
+**Error Responses:**
+- `403 Forbidden` - The account is not an administrator
+
+---
+
+## Citation Analysis Endpoints
+
+### Analyse Citations
+
+Detect the citation style of a manuscript, parse the reference list,
+cross-check it against the in-text citations and report formatting problems,
+orphaned citations and outdated references.
+
+**Endpoint:** `POST /api/v1/citations/analyze`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+ "manuscript_text": "string (100-100000 chars, required)"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "total_citations": 12,
+ "valid_citations": 11,
+ "format_detected": "apa",
+ "format_consistency": 91.7,
+ "self_citations": 2,
+ "average_citation_age": 6.3,
+ "oldest_citation_year": 1998,
+ "newest_citation_year": 2024,
+ "missing_in_text": ["Doe, A. (2015). Statistical methods for screening."],
+ "orphan_citations": ["[Jones, 2020]"],
+ "issues": [
+  {
+   "issue_type": "outdated",
+   "description": "Citation is more than 10 years old",
+   "citation_text": "Doe, A. (2015). ...",
+   "line_number": 42
+  }
+ ]
+}
+```
+
+**Error Responses:**
+- `422 Unprocessable Entity` - Manuscript text shorter than 100 characters
+- `503 Service Unavailable` - Citation analysis disabled (`ENABLE_CITATION_ANALYSIS=false`)
+
+---
+
 ## Reviewer Matching Endpoints
 
 ### Create Reviewer Profile
@@ -602,6 +818,23 @@ Create a reviewer profile for the current user.
  "available_slots": 5
 }
 ```
+
+**Error Responses:**
+- `400 Bad Request` - The account already has a reviewer profile
+
+---
+
+### Get / Update Own Reviewer Profile
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/reviewers/me` | GET | Return the current user's reviewer profile |
+| `/api/v1/reviewers/me` | PUT | Update expertise, availability and assignment limits |
+
+**Response (`PUT /api/v1/reviewers/me`):** `200 OK` — the updated reviewer profile.
+
+**Error Responses:**
+- `404 Not Found` - The account has no reviewer profile
 
 ---
 
@@ -671,6 +904,49 @@ Assign a reviewer to a manuscript analysis.
 }
 ```
 
+**Error Responses:**
+- `400 Bad Request` - The reviewer is not accepting assignments, is already assigned, or is the manuscript author
+- `409 Conflict` - The reviewer has a conflict of interest (for example the same institution as the author)
+
+---
+
+### Assignment Workflow
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/reviewers/my-assignments` | GET | List the assignments of the current reviewer |
+| `/api/v1/reviewers/assignments/{match_id}/status` | PUT | Accept, decline or complete an assignment |
+
+Allowed status transitions:
+
+```
+suggested  -> accepted | declined
+invited    -> accepted | declined
+accepted   -> completed
+declined   -> (terminal)
+completed  -> (terminal)
+```
+
+**Response (`PUT .../status`):** `200 OK`
+```json
+{
+ "id": 7,
+ "analysis_id": 42,
+ "reviewer_id": 3,
+ "reviewer_username": "reviewer1",
+ "match_score": 0.82,
+ "matched_keywords": ["machine learning"],
+ "status": "accepted",
+ "created_at": "2025-11-07T08:22:54Z",
+ "invited_at": "2025-11-07T08:22:54Z",
+ "responded_at": "2025-11-07T09:00:00Z"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid status or forbidden transition
+- `403 Forbidden` - The assignment belongs to another reviewer
+
 ---
 
 ### List Reviewers
@@ -732,9 +1008,15 @@ When rate limit is exceeded:
 
 ```json
 {
- "detail": "Rate limit exceeded"
+ "error": {
+  "code": "RATE_LIMIT_EXCEEDED",
+  "message": "Rate limit exceeded. Try again in 60 seconds."
+ }
 }
 ```
+
+The response carries a `Retry-After` header with the number of seconds until
+the limit resets.
 
 ---
 
