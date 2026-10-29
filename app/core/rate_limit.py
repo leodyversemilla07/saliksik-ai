@@ -162,6 +162,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     AUTH_MAX_REQUESTS = 10
     AUTH_WINDOW_SECONDS = 600  # 10 per 10 minutes
 
+    # The public demo runs the summariser model on every call, so it gets a
+    # tighter limit than the regular anonymous quota.
+    EXPENSIVE_PATHS = {"/api/v1/analysis/demo"}
+    EXPENSIVE_MAX_REQUESTS = 20
+    EXPENSIVE_WINDOW_SECONDS = 3600  # 20 per hour
+
     async def dispatch(self, request: Request, call_next):
         # Skip rate limiting for excluded paths
         if request.url.path in self.EXCLUDED_PATHS:
@@ -179,6 +185,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
             max_requests = self.AUTH_MAX_REQUESTS
             window_seconds = self.AUTH_WINDOW_SECONDS
+        elif request.url.path in self.EXPENSIVE_PATHS:
+            is_allowed, remaining = rate_limiter.is_allowed(
+                f"rate:expensive:{client_id}",
+                self.EXPENSIVE_MAX_REQUESTS,
+                self.EXPENSIVE_WINDOW_SECONDS,
+            )
+            max_requests = self.EXPENSIVE_MAX_REQUESTS
+            window_seconds = self.EXPENSIVE_WINDOW_SECONDS
         else:
             # General rate limit based on auth status
             is_authenticated = self._is_authenticated(request)

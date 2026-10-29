@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- Fixed API-key authentication: the strict OAuth2 scheme rejected requests without an
+  `Authorization` header before the API key was looked at, so the documented `X-API-Key`
+  flow never worked. Endpoints that accept either credential now use an optional scheme.
 - Access tokens can no longer be minted from a refresh token: `decode_access_token()` now
   requires `type == "access"`.
 - Every issued token carries a `jti`, and access-token decoding honours the blacklist, so
@@ -79,6 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reviewers that reached their assignment limit are no longer suggested.
 - Shared OpenAPI response documentation (`app/api/responses.py`) that describes the real error
   envelope; the module is now used by every router.
+- Contract tests for the analysis history/cache endpoints, the reviewer profile workflow, the
+  API key lifecycle, token refresh and password changes.
 - Regression tests for authentication, token revocation, password handling, secret validation,
   error headers, log hygiene, plagiarism thresholds/tenant isolation and reviewer matching.
 - Alembic revision `007_analysis_enhancements` adding the `language_info` and

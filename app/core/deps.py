@@ -15,6 +15,10 @@ from app.models.user import User
 
 # Schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+# Optional variant: used where a request may authenticate with an API key
+# instead of a bearer token. With the strict scheme the missing Authorization
+# header would raise a 401 before the API key is even looked at.
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
 
 # DbSession can be defined immediately since get_db is already imported
@@ -88,7 +92,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Db
 async def get_authenticated_user(
     db: DbSession,
     api_key_user: Annotated[Optional[User], Depends(get_user_by_api_key)],
-    token: Annotated[Optional[str], Depends(oauth2_scheme)],
+    token: Annotated[Optional[str], Depends(oauth2_scheme_optional)],
 ) -> User:
     """
     Unified authentication dependency - supports both JWT and API Key.
@@ -112,7 +116,7 @@ async def get_authenticated_user(
 
 
 async def get_current_user_optional(
-    token: Annotated[Optional[str], Depends(oauth2_scheme)], db: DbSession
+    token: Annotated[Optional[str], Depends(oauth2_scheme_optional)], db: DbSession
 ) -> Optional[User]:
     """
     Optional authentication - returns user if authenticated, None otherwise.

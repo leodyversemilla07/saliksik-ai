@@ -165,7 +165,25 @@ async def pre_review(
         )
 
 
-@router.get("/status/{task_id}", responses=COMMON_RESPONSES)
+@router.get(
+    "/status/{task_id}",
+    responses={
+        **COMMON_RESPONSES,
+        200: {
+            "description": "The analysis result (completed) or the current status",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/AnalysisResponse"},
+                            {"$ref": "#/components/schemas/AnalysisStatusResponse"},
+                        ]
+                    }
+                }
+            },
+        },
+    },
+)
 async def get_analysis_status(task_id: str, db: DbSession, current_user: AuthenticatedUser):
     """Check the status of an analysis task."""
     stmt = select(ManuscriptAnalysis).filter(

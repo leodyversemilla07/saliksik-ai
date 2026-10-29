@@ -72,6 +72,14 @@ class AnalysisResponse(BaseModel):
     citation_analysis: Optional[CitationAnalysisResult] = None  # Phase 2: Citation analysis
 
 
+class AnalysisStatusResponse(BaseModel):
+    """Status of a queued or running analysis."""
+
+    task_id: str
+    status: str = Field(..., description="PENDING, PROCESSING, RETRYING or FAILED")
+    message: str
+
+
 class AnalysisHistoryItem(BaseModel):
     """Single analysis history item."""
 

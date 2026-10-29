@@ -12,7 +12,6 @@ from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from sqlalchemy.orm import Session
 
 from app.celery_app import celery_app
-from app.core.cache import AIResultCache
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.analysis import ManuscriptAnalysis, ProcessingError
@@ -178,22 +177,6 @@ def process_manuscript_task(self, analysis_id: int):
         analysis.processing_time = processing_time
         analysis.status = "COMPLETED"
         db.commit()
-
-        # Cache result
-        cache_data = {
-            "summary": report["summary"],
-            "keywords": report["keywords"],
-            "language_quality": report["language_quality"],
-            "metadata": {
-                "analysis_id": analysis.id,
-                "input_length": len(text),
-                "processing_time": round(processing_time, 2),
-                "user": analysis.user.username if analysis.user else "unknown",
-                "timestamp": analysis.created_at.isoformat(),
-                "cached": False,
-            },
-        }
-        AIResultCache.cache_result(text, cache_data, namespace="authenticated")
 
         logger.info(f"Analysis {analysis_id} completed in {processing_time:.2f}s")
 

@@ -238,6 +238,33 @@ async def test_api_key_of_inactive_user_is_rejected(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_api_key_authenticates_without_a_bearer_token(client, db_session):
+    """An API key must work on its own: the strict OAuth2 scheme used to
+    reject the request before the API key was even looked at."""
+    user = User(
+        username="activekeyuser",
+        email="activekey@example.com",
+        hashed_password=get_password_hash("password123"),
+        api_key="sk_active_key",
+        is_active=True,
+        is_email_verified=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    response = await client.get("/api/v1/plagiarism/stats", headers={"X-API-Key": "sk_active_key"})
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_invalid_api_key_is_rejected(client):
+    response = await client.get("/api/v1/plagiarism/stats", headers={"X-API-Key": "sk_not_a_real_key"})
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_unauthenticated_response_keeps_www_authenticate_header(client):
     response = await client.get("/api/v1/auth/profile")
 
