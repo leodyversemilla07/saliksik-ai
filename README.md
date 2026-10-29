@@ -185,6 +185,7 @@ Access:
 | `/api/v1/plagiarism/check` | POST | Yes | Check for plagiarism |
 | `/api/v1/citations/analyze` | POST | Yes | Analyse citations and references |
 | `/api/v1/reviewers/analysis/{id}/suggestions` | GET | Yes | Get reviewer suggestions |
+| `/api/v1/admin/users` | GET | Yes (admin) | List and manage user accounts |
 | `/health` | GET | No | System health check |
 
 For full API documentation, see [docs/API_REFERENCE.md](docs/API_REFERENCE.md) or the interactive Swagger UI at `/docs`.

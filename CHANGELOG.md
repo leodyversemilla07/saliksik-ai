@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Administration API: `GET /api/v1/admin/stats`, `GET /api/v1/admin/users`,
+  `GET /api/v1/admin/users/{id}` and `PATCH /api/v1/admin/users/{id}` for listing
+  accounts, changing roles and deactivating users. An administrator cannot remove
+  their own admin role or deactivate their own account.
+- `scripts/create_admin.py` creates or promotes the first administrator.
 - Password reset flow: `POST /api/v1/auth/forgot-password` and
   `POST /api/v1/auth/reset-password` with single-use, expiring tokens. The request
   endpoint returns the same response for known and unknown addresses so it cannot be

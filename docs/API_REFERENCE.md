@@ -1023,6 +1023,129 @@ List all available reviewers.
 
 ---
 
+## Administration Endpoints
+
+All administration endpoints require a token of an account with the `admin` role.
+The first administrator is created with the helper script:
+
+```bash
+uv run python scripts/create_admin.py --username admin --email admin@example.com
+```
+
+### Admin Statistics
+
+Aggregated numbers for the admin dashboard.
+
+**Endpoint:** `GET /api/v1/admin/stats`
+
+**Authentication:** Required (`admin` role)
+
+**Response:** `200 OK`
+```json
+{
+ "total_users": 12,
+ "active_users": 11,
+ "verified_users": 9,
+ "total_analyses": 34,
+ "completed_analyses": 30,
+ "failed_analyses": 1,
+ "total_reviewers": 5,
+ "available_reviewers": 4,
+ "total_assignments": 8,
+ "indexed_documents": 34
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Missing or invalid credentials
+- `403 Forbidden` - The account is not an administrator
+
+---
+
+### List Users
+
+List the platform users.
+
+**Endpoint:** `GET /api/v1/admin/users`
+
+**Authentication:** Required (`admin` role)
+
+**Query Parameters:**
+- `page` (integer, optional): Page number (default: 1)
+- `page_size` (integer, optional): Items per page (1-100, default: 20)
+- `role` (string, optional): Filter by role (`user`, `editor`, `admin`)
+- `is_active` (boolean, optional): Filter by account status
+- `search` (string, optional): Search in username or email
+
+**Response:** `200 OK`
+```json
+{
+ "results": [
+  {
+   "id": 1,
+   "username": "admin",
+   "email": "admin@example.com",
+   "role": "admin",
+   "institution": null,
+   "is_active": true,
+   "is_email_verified": true,
+   "created_at": "2025-11-07T08:22:54Z",
+   "last_login": "2025-11-07T09:00:00Z"
+  }
+ ],
+ "total_count": 1,
+ "page": 1,
+ "page_size": 20,
+ "has_next": false,
+ "has_previous": false
+}
+```
+
+---
+
+### Get User
+
+**Endpoint:** `GET /api/v1/admin/users/{user_id}`
+
+**Authentication:** Required (`admin` role)
+
+**Response:** `200 OK` — the user object as shown above.
+
+**Error Responses:**
+- `404 Not Found` - No user with this id
+
+---
+
+### Update User
+
+Change the role or the status of an account. Deactivating an account also revokes
+its access: existing tokens and API keys stop working and the user can no longer
+log in.
+
+**Endpoint:** `PATCH /api/v1/admin/users/{user_id}`
+
+**Authentication:** Required (`admin` role)
+
+**Request Body:**
+```json
+{
+ "role": "editor",
+ "is_active": true,
+ "is_email_verified": false
+}
+```
+
+All fields are optional — only the supplied ones are changed.
+
+**Response:** `200 OK` — the updated user object.
+
+**Error Responses:**
+- `400 Bad Request` - An administrator tried to remove their own admin role or
+  deactivate their own account
+- `404 Not Found` - No user with this id
+
+---
+
 ## Enhanced Analysis Response
 
 The analysis response now includes additional enhancement fields:

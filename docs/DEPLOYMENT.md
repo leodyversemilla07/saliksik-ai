@@ -195,29 +195,19 @@ The API also creates any missing tables at startup, but running migrations expli
 
 ### Create an Initial Admin User (Optional)
 
+Administrators can list users, change roles and deactivate accounts through the
+`/api/v1/admin/...` endpoints. The first administrator is created with the
+helper script (the password is prompted for when `--password` is omitted):
+
 ```bash
 cd /home/saliksik/saliksik-ai
-uv run python - <<'PY'
-from app.core.database import SessionLocal
-from app.core.security import get_password_hash
-from app.models.user import User
+uv run python scripts/create_admin.py --username admin --email admin@your-domain.com
+```
 
-db = SessionLocal()
-try:
-    admin = User(
-        username="admin",
-        email="admin@your-domain.com",
-        hashed_password=get_password_hash("change-this-password"),
-        role="admin",
-        is_active=True,
-        is_email_verified=True,
-    )
-    db.add(admin)
-    db.commit()
-    print("Admin user created")
-finally:
-    db.close()
-PY
+An existing account can be promoted instead:
+
+```bash
+uv run python scripts/create_admin.py --promote existing_username
 ```
 
 ---
