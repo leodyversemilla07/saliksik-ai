@@ -12,7 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 
-from app.api.responses import COMMON_RESPONSES
+from app.api.responses import COMMON_RESPONSES, ErrorResponse, error_examples
 from app.core.cache import AIResultCache
 from app.core.config import settings
 from app.core.deps import (
@@ -48,7 +48,55 @@ pre_reviewer = ManuscriptPreReviewer()
 _demo_analysis_lock = asyncio.Lock()
 
 
-@router.post("/pre-review", status_code=status.HTTP_202_ACCEPTED, responses=COMMON_RESPONSES)
+@router.post(
+    "/pre-review",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        **COMMON_RESPONSES,
+        400: error_examples(
+            {
+                "summary": "No input provided",
+                "message": "Either 'manuscript_file' (PDF) or 'manuscript_text' is required",
+            },
+            {
+                "summary": "Text too short",
+                "message": "Text too short for meaningful analysis (minimum 50 characters)",
+            },
+            {
+                "summary": "Invalid file type",
+                "message": "Invalid file type. Only PDF files are supported",
+            },
+        ),
+        413: {
+            "description": "The manuscript exceeds the configured character limit",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {
+                            "code": "HTTP_ERROR",
+                            "message": "Text exceeds maximum allowed length of 200,000 characters",
+                        }
+                    }
+                }
+            },
+        },
+        503: {
+            "description": "The analysis queue is unavailable",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {
+                            "code": "HTTP_ERROR",
+                            "message": "Analysis queue is temporarily unavailable",
+                        }
+                    }
+                }
+            },
+        },
+    },
+)
 async def pre_review(
     db: DbSession,
     current_user: AuthenticatedUser,

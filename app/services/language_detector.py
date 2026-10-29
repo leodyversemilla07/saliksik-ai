@@ -4,7 +4,7 @@ Language detection service for multi-language manuscript support.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     from langdetect import DetectorFactory, detect_langs
@@ -98,19 +98,36 @@ class LanguageDetector:
         },
     }
 
-    def __init__(self, default_language: str = "en"):
+    def __init__(self, default_language: str = "en", enabled_languages: Optional[List[str]] = None):
         """
         Initialize the language detector.
 
         Args:
             default_language: Default language code if detection fails
+            enabled_languages: Languages the deployment supports. Detected
+                languages outside this list fall back to the default.
         """
         self.default_language = default_language
+
+        if enabled_languages is None:
+            from app.core.config import settings
+
+            configured = [code.strip() for code in str(settings.SUPPORTED_LANGUAGES).split(",") if code.strip()]
+            enabled_languages = configured or list(self.SUPPORTED_LANGUAGES)
+
+        # Only keep languages that the analyzer knows about.
+        self.enabled_languages = {code for code in enabled_languages if code in self.SUPPORTED_LANGUAGES}
+        if not self.enabled_languages:
+            self.enabled_languages = {default_language} if default_language in self.SUPPORTED_LANGUAGES else {"en"}
 
         if not LANGDETECT_AVAILABLE:
             logger.warning("langdetect not available. Language detection will default to English.")
 
-        logger.info(f"LanguageDetector initialized (default: {default_language})")
+        logger.info(
+            "LanguageDetector initialized (default: %s, enabled: %s)",
+            default_language,
+            ",".join(sorted(self.enabled_languages)),
+        )
 
     def detect_language(self, text: str, min_length: int = 20) -> LanguageInfo:
         """
@@ -155,10 +172,10 @@ class LanguageDetector:
             confidence = top_lang.prob
 
             # Map to our supported languages
-            if lang_code in self.SUPPORTED_LANGUAGES:
+            if lang_code in self.enabled_languages:
                 lang_name = self.SUPPORTED_LANGUAGES[lang_code]["name"]
             else:
-                # Fall back to default for unsupported languages
+                # Fall back to default for unsupported or disabled languages
                 logger.info(f"Detected unsupported language '{lang_code}', falling back to default")
                 lang_code = self.default_language
                 lang_name = self.SUPPORTED_LANGUAGES.get(self.default_language, {}).get("name", "English")
@@ -175,8 +192,8 @@ class LanguageDetector:
             )
 
     def is_supported(self, lang_code: str) -> bool:
-        """Check if a language is supported."""
-        return lang_code in self.SUPPORTED_LANGUAGES
+        """Check if a language is supported and enabled."""
+        return lang_code in self.enabled_languages
 
     def get_spacy_model(self, lang_code: str) -> Optional[str]:
         """Get the spaCy model name for a language."""
@@ -191,8 +208,8 @@ class LanguageDetector:
         return None
 
     def get_supported_languages(self) -> Dict[str, str]:
-        """Get a dictionary of supported language codes and names."""
-        return {code: info["name"] for code, info in self.SUPPORTED_LANGUAGES.items()}
+        """Get a dictionary of the enabled language codes and names."""
+        return {code: info["name"] for code, info in self.SUPPORTED_LANGUAGES.items() if code in self.enabled_languages}
 
     def get_language_info(self, lang_code: str) -> Optional[Dict[str, Any]]:
         """Get full information about a supported language."""

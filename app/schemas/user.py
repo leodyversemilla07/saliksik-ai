@@ -17,13 +17,6 @@ class UserRegister(BaseModel):
     institution: Optional[str] = Field(None, max_length=255)
 
 
-class UserLogin(BaseModel):
-    """User login schema."""
-
-    username: str
-    password: str
-
-
 class UserResponse(BaseModel):
     """User response schema."""
 

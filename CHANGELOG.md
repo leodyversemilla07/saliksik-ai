@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Known advisories dropped from 266 (21 packages) to 10 (transformers 4.x only).
 
 ### Fixed
+- The request size limit middleware returned `500` for oversized uploads and invalid
+  `Content-Length` headers (it raised an `HTTPException` outside the exception handlers); it
+  now returns `400`/`413` with the standard error envelope.
+- The language detector now honours the configured `SUPPORTED_LANGUAGES` list instead of
+  ignoring it.
 - Manuscripts are no longer truncated to 10,000 characters; the limit is now an explicit
   `MAX_MANUSCRIPT_CHARS` (200,000) and oversized submissions return `413`.
 - The Celery task receives only the analysis id — manuscript text is no longer copied into the
@@ -84,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   envelope; the module is now used by every router.
 - Contract tests for the analysis history/cache endpoints, the reviewer profile workflow, the
   API key lifecycle, token refresh and password changes.
+- Tests for the request size limit middleware and the language detector configuration.
 - Regression tests for authentication, token revocation, password handling, secret validation,
   error headers, log hygiene, plagiarism thresholds/tenant isolation and reviewer matching.
 - Alembic revision `007_analysis_enhancements` adding the `language_info` and

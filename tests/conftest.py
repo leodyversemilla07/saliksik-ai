@@ -121,6 +121,12 @@ async def db_session(db_engine):
         await session.rollback()
 
 
+@pytest.fixture(scope="session")
+def app_fixture():
+    """Expose the FastAPI application to tests that build their own client."""
+    return app
+
+
 @pytest.fixture(autouse=True)
 def disable_rate_limiting():
     """Disable rate limiting for all tests — tested separately in test_rate_limit.py."""

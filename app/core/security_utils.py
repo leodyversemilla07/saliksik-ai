@@ -6,7 +6,7 @@ import html
 import re
 from typing import List, Optional, Tuple
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
@@ -34,6 +34,13 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     Middleware to limit request body size to prevent DoS attacks.
     """
 
+    @staticmethod
+    def _error_response(status_code: int, message: str) -> Response:
+        """Build the error response (middleware runs outside the exception handlers)."""
+        from app.core.exceptions import create_error_response
+
+        return create_error_response(status_code=status_code, error_code="HTTP_ERROR", message=message)
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         content_length = request.headers.get("content-length")
         content_type = request.headers.get("content-type", "")
@@ -43,26 +50,23 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                 size = int(content_length)
             except ValueError:
                 logger.warning("Request rejected: invalid Content-Length header")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid Content-Length header",
-                )
+                return self._error_response(status.HTTP_400_BAD_REQUEST, "Invalid Content-Length header")
 
             # Check file upload size
             if "multipart/form-data" in content_type:
                 if size > MAX_FILE_SIZE:
                     logger.warning(f"Request too large: {size} bytes (file upload)")
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"File too large. Maximum size is {settings.MAX_FILE_SIZE_MB}MB",
+                    return self._error_response(
+                        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        f"File too large. Maximum size is {settings.MAX_FILE_SIZE_MB}MB",
                     )
             # Check JSON body size
             elif "application/json" in content_type:
                 if size > MAX_JSON_SIZE:
                     logger.warning(f"Request too large: {size} bytes (JSON)")
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="Request body too large. Maximum size is 1MB",
+                    return self._error_response(
+                        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        "Request body too large. Maximum size is 1MB",
                     )
 
         return await call_next(request)

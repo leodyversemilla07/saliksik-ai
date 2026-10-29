@@ -10,13 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.citation import CitationAnalysisResult
 from app.schemas.plagiarism import PlagiarismResult
 
-
-class AnalysisRequest(BaseModel):
-    """Analysis request schema."""
-
-    manuscript_text: str = Field(..., min_length=50, max_length=250000)  # Approx 40k words
-
-
 # Public demo endpoint limit (characters).
 DEMO_MAX_TEXT_LENGTH = 5000
 
