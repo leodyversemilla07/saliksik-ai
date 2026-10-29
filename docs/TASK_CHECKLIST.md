@@ -2,6 +2,15 @@
 
 ## ✅ ALL TASKS COMPLETED - 2025-12-22
 
+> **Status note (2026-10-29):** This document is the historical record of the
+> original enhancement work. The features it describes were re-audited in
+> 2026-10: several parts had never been wired into the analysis pipeline and
+> were only reachable through dead code. They are now implemented end-to-end
+> (task pipeline, API responses, persistence) and covered by regression tests.
+> See `CHANGELOG.md` and `ENHANCEMENT_ROADMAP.md` for the current state and the
+> remaining follow-ups.
+
+
 ---
 
 ## Phase 1: Plagiarism Detection (v2.1.0) ✅

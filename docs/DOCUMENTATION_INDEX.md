@@ -2,6 +2,13 @@
 
 Complete documentation for Saliksik AI
 
+> **Last Updated**: 2026-10-29
+>
+> The documents below describe the current state of the project. `IMPLEMENTATION_PLAN.md`
+> and `TASK_CHECKLIST.md` are historical records of the original enhancement work
+> (2025-12-22); the features they describe were audited, fixed and wired into the
+> analysis pipeline in 2026-10 — see `CHANGELOG.md` and `ENHANCEMENT_ROADMAP.md`.
+
 ## Documentation Files
 
 ### Getting Started
@@ -13,6 +20,7 @@ Complete documentation for Saliksik AI
  - Installation instructions
  - Basic usage examples
  - Architecture overview
+ - Web interface (`/` landing page, `/dashboard`)
 
 ### API Documentation
 
@@ -22,6 +30,7 @@ Complete documentation for Saliksik AI
  - Authentication guide
  - Error responses
  - Rate limiting details
+ - Administration endpoints
 
 ### Deployment
 
@@ -57,11 +66,13 @@ Complete documentation for Saliksik AI
  - API endpoints created
  - Dependencies added
  - Configuration options
+ - *Historical record of the original implementation*
 
 7. **[TASK_CHECKLIST.md](TASK_CHECKLIST.md)** - Development task tracking
  - Phase-by-phase task breakdown
  - Completion status for all items
  - Post-implementation tasks
+ - *Historical record of the original implementation*
 
 ## Configuration
 
@@ -73,6 +84,12 @@ Complete documentation for Saliksik AI
 ## Interactive Documentation
 
 Once the server is running, visit:
+
+- **Landing page**: http://localhost:8000/
+ - Service overview and quick start examples
+
+- **Dashboard**: http://localhost:8000/dashboard
+ - Register, sign in, submit manuscripts and inspect the results
 
 - **Swagger UI**: http://localhost:8000/docs
  - Interactive API testing
@@ -107,6 +124,7 @@ Once the server is running, visit:
 **"How do I..."**
 - ...install the application? → README.md > Installation
 - ...use the API? → API_REFERENCE.md or /docs
+- ...use the web interface? → http://localhost:8000/dashboard
 - ...deploy to production? → DEPLOYMENT.md
 - ...contribute? → CONTRIBUTING.md
 - ...configure settings? → .env.example
@@ -141,11 +159,11 @@ When making changes:
 ## Documentation Feedback
 
 Found an issue or have a suggestion?
-- Report: [GitHub Issues](https://github.com/yourusername/saliksik-ai/issues)
-- Discuss: [GitHub Discussions](https://github.com/yourusername/saliksik-ai/discussions)
+- Report: [GitHub Issues](https://github.com/leodyversemilla07/saliksik-ai/issues)
+- Discuss: [GitHub Discussions](https://github.com/leodyversemilla07/saliksik-ai/discussions)
 - Edit: Submit a PR with improvements
 
 ---
 
-**Last Updated**: 2025-12-22  
-**Documentation Version**: 2.1.0 (All Enhancements Complete)
+**Last Updated**: 2026-10-29  
+**Documentation Version**: 2.1.0

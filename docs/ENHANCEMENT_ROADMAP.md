@@ -306,6 +306,23 @@ AUTO_DETECT_LANGUAGE=true
 
 ---
 
+## Follow-ups (not implemented yet)
+
+The four enhancement areas above are live. These are the genuine remaining
+gaps, in the order in which they are worth tackling:
+
+| # | Follow-up | Scope | Notes |
+|---|-----------|-------|-------|
+| 1 | Multilingual summariser | Medium | The pipeline detects the language and switches the spaCy model, but the summary itself is still produced by the English DistilBART model. A multilingual checkpoint (mBART / mT5) would fix this; it also means a different model download and a larger image. |
+| 2 | Language-specific readability metrics | Small | Flesch, Flesch–Kincaid and Coleman–Liau assume English syllables and sentence lengths. Language-specific formulas (or a calibrated syllable estimator per language) are needed for the other supported languages. |
+| 3 | DOI / CrossRef verification | Medium | The citation analyser parses references locally. Verifying DOIs against CrossRef would require an outbound HTTP dependency, caching and a rate-limit budget. |
+| 4 | Mixed-language documents | Medium | A manuscript with several languages currently falls back to the dominant language; per-section detection is not implemented. |
+| 5 | LanguageTool grammar checks | Medium | `grammar_issues` stays `None` unless a LanguageTool server is reachable; the project deliberately avoids the Java dependency. |
+| 6 | Administration UI | Small | The `/api/v1/admin/...` endpoints exist; the bundled dashboard has no admin view yet. |
+| 7 | External plagiarism sources | Large | The detector only compares against the documents of the same tenant. Cross-checking with an external corpus (Crossref, Turnitin-like APIs) needs credentials and a compliance review. |
+
+---
+
 ## Implementation Priority Matrix
 
 | Enhancement | Impact | Effort | Priority Score |
@@ -320,22 +337,20 @@ AUTO_DETECT_LANGUAGE=true
 ## Version Roadmap
 
 ```
-v2.0.x (Current)
+v2.0.x
 ├── Core manuscript pre-review
 ├── Summarization, keywords, quality metrics
 └── PDF support, caching, async processing
 
-v2.1.0 (Q1 2025)
-└── Plagiarism Detection
+v2.1.0
+└── Plagiarism Detection, Citation Analysis, Reviewer Matching,
+    Multi-Language Support
 
-v2.2.0 (Q2 2025)
-└── Citation Analysis
-
-v2.3.0 (Q2-Q3 2025)
-└── Reviewer Matching
-
-v2.4.0 (Q3-Q4 2025)
-└── Multi-Language Support
+v2.2.0 (current)
+├── Authentication hardening (token types, revocation, password reset)
+├── Administration API and bundled web interface
+├── Dependency refresh and CI end-to-end job
+└── Follow-ups 1-6 of the list above
 ```
 
 ---
