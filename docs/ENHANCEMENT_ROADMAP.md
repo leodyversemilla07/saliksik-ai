@@ -318,7 +318,7 @@ gaps, in the order in which they are worth tackling:
 | 3 | DOI / CrossRef verification | Medium | The citation analyser parses references locally. Verifying DOIs against CrossRef would require an outbound HTTP dependency, caching and a rate-limit budget. |
 | 4 | Mixed-language documents | Medium | A manuscript with several languages currently falls back to the dominant language; per-section detection is not implemented. |
 | 5 | LanguageTool grammar checks | Medium | `grammar_issues` stays `None` unless a LanguageTool server is reachable; the project deliberately avoids the Java dependency. |
-| 6 | Administration UI | Small | The `/api/v1/admin/...` endpoints exist; the bundled dashboard has no admin view yet. |
+| 6 | Administration UI | Small | Done: the dashboard has an administration view (statistics, user list, role changes). |
 | 7 | External plagiarism sources | Large | The detector only compares against the documents of the same tenant. Cross-checking with an external corpus (Crossref, Turnitin-like APIs) needs credentials and a compliance review. |
 
 ---

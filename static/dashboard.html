@@ -165,6 +165,34 @@
         </div>
         <div id="tools-output" style="margin-top: 16px"></div>
       </section>
+
+      <!-- Administration -->
+      <section class="card hidden" id="admin-card">
+        <h2>Administration</h2>
+        <div id="admin-alert" class="alert"></div>
+        <div class="metrics" id="admin-stats"></div>
+        <h3 style="margin-top: 18px">Users</h3>
+        <div class="row" style="margin-bottom: 10px">
+          <input id="admin-search" placeholder="Search username or email" style="max-width: 260px" />
+          <select id="admin-role" style="max-width: 160px">
+            <option value="">All roles</option>
+            <option value="user">user</option>
+            <option value="editor">editor</option>
+            <option value="admin">admin</option>
+          </select>
+          <select id="admin-active" style="max-width: 160px">
+            <option value="">Any status</option>
+            <option value="true">active</option>
+            <option value="false">inactive</option>
+          </select>
+          <button id="admin-refresh" class="secondary">Refresh</button>
+        </div>
+        <div id="admin-users"></div>
+        <div class="row" style="margin-top: 10px">
+          <button id="admin-prev" class="secondary">Previous</button>
+          <button id="admin-next" class="secondary">Next</button>
+        </div>
+      </section>
     </main>
 
     <footer>Saliksik AI — FastAPI · Celery · PostgreSQL · Redis</footer>

@@ -4,7 +4,15 @@
 
   var TOKEN_KEY = "saliksik.access_token";
   var USER_KEY = "saliksik.user";
-  var state = { token: null, user: null, taskId: null, pollTimer: null, historyPage: 1, hasProfile: false };
+  var state = {
+    token: null,
+    user: null,
+    taskId: null,
+    pollTimer: null,
+    historyPage: 1,
+    hasProfile: false,
+    adminPage: 1,
+  };
 
   function $(id) {
     return document.getElementById(id);
@@ -48,6 +56,7 @@
     ["analysis-card", "history-card", "reviewer-card", "tools-card"].forEach(function (id) {
       $(id).classList.toggle("hidden", !signedIn);
     });
+    $("admin-card").classList.toggle("hidden", !(signedIn && isAdmin()));
     var badge = $("user-badge");
     var logout = $("logout-btn");
     if (signedIn) {
@@ -561,6 +570,124 @@
       });
   }
 
+  /* ---------------------------------------------------------- admin */
+
+  function isAdmin() {
+    return !!(state.user && state.user.role === "admin");
+  }
+
+  function loadAdminStats() {
+    if (!isAdmin()) return;
+    api("/api/v1/admin/stats")
+      .then(function (data) {
+        $("admin-stats").innerHTML = [
+          metric("Users", data.total_users || 0),
+          metric("Active", data.active_users || 0),
+          metric("Verified", data.verified_users || 0),
+          metric("Analyses", data.total_analyses || 0),
+          metric("Completed", data.completed_analyses || 0),
+          metric("Failed", data.failed_analyses || 0),
+          metric("Reviewers", data.total_reviewers || 0),
+          metric("Assignments", data.total_assignments || 0),
+        ].join("");
+      })
+      .catch(function (error) {
+        showAlert("admin-alert", error.message, "error");
+      });
+  }
+
+  function loadAdminUsers() {
+    if (!isAdmin()) return;
+    var params = new URLSearchParams();
+    params.append("page", String(state.adminPage));
+    params.append("page_size", "10");
+    var search = $("admin-search").value.trim();
+    if (search) params.append("search", search);
+    var role = $("admin-role").value;
+    if (role) params.append("role", role);
+    var active = $("admin-active").value;
+    if (active) params.append("is_active", active);
+
+    api("/api/v1/admin/users?" + params.toString())
+      .then(function (data) {
+        var results = data.results || [];
+        if (!results.length) {
+          $("admin-users").innerHTML = '<p class="muted small">No users match the filter.</p>';
+        } else {
+          var rows = results
+            .map(function (item) {
+              var roleOptions = ["user", "editor", "admin"]
+                .map(function (role) {
+                  return (
+                    '<option value="' +
+                    role +
+                    '"' +
+                    (item.role === role ? " selected" : "") +
+                    ">" +
+                    role +
+                    "</option>"
+                  );
+                })
+                .join("");
+              return (
+                "<tr><td>" +
+                item.username +
+                '<div class="muted small">' +
+                item.email +
+                "</div></td>" +
+                '<td><select data-role-for="' +
+                item.id +
+                '">' +
+                roleOptions +
+                "</select></td>" +
+                "<td>" +
+                '<span class="badge ' +
+                (item.is_active ? "ok" : "bad") +
+                '">' +
+                (item.is_active ? "active" : "inactive") +
+                "</span></td>" +
+                '<td><button class="secondary" data-save-user="' +
+                item.id +
+                '">Save</button></td></tr>'
+              );
+            })
+            .join("");
+          $("admin-users").innerHTML =
+            "<table><thead><tr><th>User</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>" +
+            rows +
+            "</tbody></table>";
+          $("admin-users").querySelectorAll("[data-save-user]").forEach(function (button) {
+            button.addEventListener("click", function () {
+              saveAdminUser(button.getAttribute("data-save-user"));
+            });
+          });
+        }
+        $("admin-prev").disabled = !data.has_previous;
+        $("admin-next").disabled = !data.has_next;
+      })
+      .catch(function (error) {
+        showAlert("admin-alert", error.message, "error");
+      });
+  }
+
+  function saveAdminUser(userId) {
+    var select = $("admin-users").querySelector('[data-role-for="' + userId + '"]');
+    if (!select) return;
+    api("/api/v1/admin/users/" + userId, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: select.value }),
+    })
+      .then(function () {
+        showAlert("admin-alert", "User updated.", "success");
+        loadAdminStats();
+        loadAdminUsers();
+      })
+      .catch(function (error) {
+        showAlert("admin-alert", error.message, "error");
+      });
+  }
+
   /* -------------------------------------------------------------- init */
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -587,10 +714,39 @@
     $("citation-btn").addEventListener("click", analyseCitations);
     $("plagiarism-btn").addEventListener("click", checkPlagiarism);
     $("stats-btn").addEventListener("click", loadIndexStats);
+    $("admin-refresh").addEventListener("click", function () {
+      state.adminPage = 1;
+      loadAdminStats();
+      loadAdminUsers();
+    });
+    $("admin-search").addEventListener("change", function () {
+      state.adminPage = 1;
+      loadAdminUsers();
+    });
+    $("admin-role").addEventListener("change", function () {
+      state.adminPage = 1;
+      loadAdminUsers();
+    });
+    $("admin-active").addEventListener("change", function () {
+      state.adminPage = 1;
+      loadAdminUsers();
+    });
+    $("admin-prev").addEventListener("click", function () {
+      if (state.adminPage > 1) {
+        state.adminPage -= 1;
+        loadAdminUsers();
+      }
+    });
+    $("admin-next").addEventListener("click", function () {
+      state.adminPage += 1;
+      loadAdminUsers();
+    });
 
     if (state.token) {
       loadHistory();
       loadReviewerProfile();
+      loadAdminStats();
+      loadAdminUsers();
     }
   });
 })();

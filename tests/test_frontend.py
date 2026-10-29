@@ -52,3 +52,5 @@ async def test_dashboard_script_calls_the_documented_endpoints(client: AsyncClie
     assert "/api/v1/citations/analyze" in body
     assert "/api/v1/plagiarism/check" in body
     assert "/api/v1/reviewers/me" in body
+    assert "/api/v1/admin/stats" in body
+    assert "/api/v1/admin/users" in body
