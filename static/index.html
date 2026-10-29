@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saliksik AI — manuscript pre-review</title>
+    <meta
+      name="description"
+      content="Saliksik AI analyses manuscripts: summaries, keywords, readability, plagiarism, citations and reviewer matching."
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="dot"></span> Saliksik AI</div>
+      <div class="topbar-actions">
+        <span id="health-badge" class="badge">checking…</span>
+        <a class="badge" href="/docs">API docs</a>
+        <a class="badge" href="/dashboard">Dashboard</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Manuscript pre-review, in one API call</h1>
+        <p class="lead">
+          Submit a manuscript and get a summary, keywords, readability metrics, a plagiarism check, a citation
+          report and reviewer suggestions.
+        </p>
+        <div class="row" style="justify-content: center; margin-top: 18px">
+          <a href="/dashboard"><button>Open the dashboard</button></a>
+          <a href="/docs"><button class="secondary">Explore the API</button></a>
+        </div>
+      </section>
+
+      <section class="feature-grid">
+        <article class="feature">
+          <h3>Summaries & keywords</h3>
+          <p>
+            A local summarisation model (DistilBART) and YAKE keyword extraction, with no data leaving the
+            server.
+          </p>
+        </article>
+        <article class="feature">
+          <h3>Readability</h3>
+          <p>Flesch reading ease, Flesch–Kincaid grade level and the Coleman–Liau index per manuscript.</p>
+        </article>
+        <article class="feature">
+          <h3>Plagiarism detection</h3>
+          <p>MinHash fingerprints compare a manuscript against the documents of the same tenant.</p>
+        </article>
+        <article class="feature">
+          <h3>Citation analysis</h3>
+          <p>Detects the citation style, flags malformed references and reports orphan citations.</p>
+        </article>
+        <article class="feature">
+          <h3>Reviewer matching</h3>
+          <p>Keyword and semantic matching with conflict-of-interest checks based on the affiliation.</p>
+        </article>
+        <article class="feature">
+          <h3>Multi-language</h3>
+          <p>Automatic language detection with a per-language spaCy pipeline for entity extraction.</p>
+        </article>
+      </section>
+
+      <section class="card" style="margin-top: 28px">
+        <h2>Quick start</h2>
+        <p class="small muted">
+          Register an account, then submit a manuscript. The API answers with a task id that you poll for the
+          result.
+        </p>
+        <pre class="output">curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "author", "email": "author@example.com", "password": "Password1!"}'
+
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -d 'username=author&password=Password1!'
+
+curl -X POST http://localhost:8000/api/v1/analysis/pre-review \
+  -H 'Authorization: Bearer <access_token>' \
+  -F 'manuscript_text=Your manuscript text here...'
+
+curl http://localhost:8000/api/v1/analysis/status/<task_id> \
+  -H 'Authorization: Bearer <access_token>'</pre>
+      </section>
+    </main>
+
+    <footer>Saliksik AI — FastAPI · Celery · PostgreSQL · Redis</footer>
+
+    <script>
+      async function checkHealth() {
+        const badge = document.getElementById("health-badge");
+        try {
+          const response = await fetch("/health");
+          const body = await response.json();
+          if (response.ok && body.status === "healthy") {
+            badge.textContent = "healthy";
+            badge.className = "badge ok";
+          } else {
+            badge.textContent = body.status || "unhealthy";
+            badge.className = "badge warn";
+          }
+        } catch (error) {
+          badge.textContent = "offline";
+          badge.className = "badge bad";
+        }
+      }
+      checkHealth();
+      setInterval(checkHealth, 30000);
+    </script>
+  </body>
+</html>

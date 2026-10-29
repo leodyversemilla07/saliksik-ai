@@ -134,10 +134,11 @@ dmypy.json
 .pyre/
 
 # ============================================
-# Django Static & Media Files
+# Static & Media Files
 # ============================================
-/staticfiles/
-/static/
+# NOTE: /static/ holds the landing page and the dashboard of this project and
+# is tracked in git. Only build artefacts are ignored.
+staticfiles/
 /media/
 /uploads/
 

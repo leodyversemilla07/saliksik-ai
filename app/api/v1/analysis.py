@@ -407,8 +407,8 @@ async def get_history(db: DbSession, current_user: AuthenticatedUser, page: int 
                 id=analysis.id,
                 filename=analysis.original_filename,
                 input_type=analysis.input_type,
-                word_count=int(analysis.language_quality.get("word_count", 0) or 0),
-                readability_score=float(analysis.language_quality.get("readability_score", 0) or 0),
+                word_count=int((analysis.language_quality or {}).get("word_count", 0) or 0),
+                readability_score=float((analysis.language_quality or {}).get("readability_score", 0) or 0),
                 created_at=analysis.created_at,
                 processing_time=analysis.processing_time,
             )

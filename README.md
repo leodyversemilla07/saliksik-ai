@@ -41,6 +41,7 @@ Saliksik AI streamlines the initial manuscript review process by automatically a
 
 - **Async Everything** — FastAPI + async SQLAlchemy + Celery task queue
 - **Auto-Generated Docs** — Interactive Swagger UI and ReDoc at `/docs`
+- **Bundled Web UI** — Landing page at `/` and a dashboard at `/dashboard` (no build step)
 - **CI/CD** — GitHub Actions with linting (ruff) and test coverage (pytest-cov)
 - **Security** — Hardened SECRET_KEY validation, input sanitization, rate limiting, security headers
 
@@ -132,6 +133,8 @@ These services are unprivileged and do not start automatically after a reboot. R
 `./scripts/local-services.sh up` before starting the API and Celery worker.
 
 Access:
+- Landing page: http://localhost:8000/
+- Dashboard: http://localhost:8000/dashboard
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 - Health: http://localhost:8000/health

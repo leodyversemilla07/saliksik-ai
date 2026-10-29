@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- A bundled web interface: a landing page at `/` and a dashboard at `/dashboard` with
+  registration, login, manuscript submission (text or PDF), live status polling, analysis
+  history, reviewer profile management, citation analysis and plagiarism checks. The
+  `static/` directory was ignored by a leftover Django rule in `.gitignore`, so the pages
+  were missing from every clone.
 - Administration API: `GET /api/v1/admin/stats`, `GET /api/v1/admin/users`,
   `GET /api/v1/admin/users/{id}` and `PATCH /api/v1/admin/users/{id}` for listing
   accounts, changing roles and deactivating users. An administrator cannot remove

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saliksik AI — dashboard</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="dot"></span> Saliksik AI</div>
+      <div class="topbar-actions">
+        <span id="health-badge" class="badge">checking…</span>
+        <span id="user-badge" class="badge hidden"></span>
+        <button id="logout-btn" class="secondary hidden">Log out</button>
+        <a class="badge" href="/">Home</a>
+        <a class="badge" href="/docs">API docs</a>
+      </div>
+    </header>
+
+    <main>
+      <h1>Dashboard</h1>
+      <p class="lead">Sign in to submit manuscripts and inspect the analysis results.</p>
+
+      <!-- Authentication -->
+      <section class="card" id="auth-card">
+        <h2>Sign in</h2>
+        <div id="auth-alert" class="alert"></div>
+        <div class="grid two">
+          <div>
+            <h3>Login</h3>
+            <div class="field">
+              <label for="login-username">Username</label>
+              <input id="login-username" autocomplete="username" placeholder="author" />
+            </div>
+            <div class="field">
+              <label for="login-password">Password</label>
+              <input id="login-password" type="password" autocomplete="current-password" />
+            </div>
+            <button id="login-btn">Log in</button>
+          </div>
+          <div>
+            <h3>Register</h3>
+            <div class="field">
+              <label for="register-username">Username</label>
+              <input id="register-username" autocomplete="username" placeholder="author" />
+            </div>
+            <div class="field">
+              <label for="register-email">Email</label>
+              <input id="register-email" type="email" autocomplete="email" placeholder="author@example.com" />
+            </div>
+            <div class="field">
+              <label for="register-password">Password</label>
+              <input id="register-password" type="password" autocomplete="new-password" placeholder="At least 8 characters" />
+            </div>
+            <div class="field">
+              <label for="register-institution">Institution (optional)</label>
+              <input id="register-institution" placeholder="Example University" />
+            </div>
+            <button id="register-btn" class="secondary">Create account</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analysis -->
+      <section class="card hidden" id="analysis-card">
+        <h2>Submit a manuscript</h2>
+        <div id="analysis-alert" class="alert"></div>
+        <div class="field">
+          <label for="manuscript-text">Manuscript text</label>
+          <textarea
+            id="manuscript-text"
+            placeholder="Paste the manuscript text here (at least 50 characters)…"
+          ></textarea>
+        </div>
+        <div class="field">
+          <label for="manuscript-file">…or upload a PDF (optional)</label>
+          <input id="manuscript-file" type="file" accept="application/pdf" />
+        </div>
+        <div class="row">
+          <button id="submit-btn">Submit for pre-review</button>
+          <span id="task-status" class="badge">idle</span>
+        </div>
+
+        <div id="result-area" class="hidden" style="margin-top: 18px">
+          <h3>Result</h3>
+          <div class="metrics" id="result-metrics"></div>
+          <h3 style="margin-top: 16px">Summary</h3>
+          <p id="result-summary"></p>
+          <h3 style="margin-top: 16px">Keywords</h3>
+          <div id="result-keywords"></div>
+          <div id="result-language" style="margin-top: 16px"></div>
+          <div id="result-plagiarism" style="margin-top: 16px"></div>
+          <div id="result-citations" style="margin-top: 16px"></div>
+          <div id="result-reviewers" style="margin-top: 16px"></div>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section class="card hidden" id="history-card">
+        <div class="row" style="justify-content: space-between">
+          <h2>Analysis history</h2>
+          <div class="row">
+            <button id="history-refresh" class="secondary">Refresh</button>
+            <button id="history-prev" class="secondary">Previous</button>
+            <button id="history-next" class="secondary">Next</button>
+          </div>
+        </div>
+        <div id="history-alert" class="alert"></div>
+        <div id="history-body"></div>
+      </section>
+
+      <!-- Reviewer profile -->
+      <section class="card hidden" id="reviewer-card">
+        <h2>Reviewer profile</h2>
+        <div id="reviewer-alert" class="alert"></div>
+        <div class="grid two">
+          <div>
+            <div class="field">
+              <label for="reviewer-keywords">Expertise keywords (comma separated)</label>
+              <input id="reviewer-keywords" placeholder="machine learning, bioinformatics" />
+            </div>
+            <div class="field">
+              <label for="reviewer-description">Expertise description</label>
+              <textarea id="reviewer-description" placeholder="What do you review?"></textarea>
+            </div>
+          </div>
+          <div>
+            <div class="field">
+              <label for="reviewer-institution">Institution</label>
+              <input id="reviewer-institution" />
+            </div>
+            <div class="field">
+              <label for="reviewer-department">Department</label>
+              <input id="reviewer-department" />
+            </div>
+            <div class="field">
+              <label for="reviewer-orcid">ORCID (optional)</label>
+              <input id="reviewer-orcid" placeholder="0000-0000-0000-0000" />
+            </div>
+            <div class="field">
+              <label for="reviewer-max">Maximum assignments</label>
+              <input id="reviewer-max" type="number" min="1" max="20" value="5" />
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button id="reviewer-save">Save profile</button>
+          <span id="reviewer-state" class="badge">no profile</span>
+        </div>
+      </section>
+
+      <!-- Citations & plagiarism -->
+      <section class="card hidden" id="tools-card">
+        <h2>Citation analysis & plagiarism index</h2>
+        <div id="tools-alert" class="alert"></div>
+        <div class="field">
+          <label for="citation-text">Manuscript text (including the reference list)</label>
+          <textarea id="citation-text" placeholder="Paste at least 100 characters…"></textarea>
+        </div>
+        <div class="row">
+          <button id="citation-btn">Analyse citations</button>
+          <button id="plagiarism-btn" class="secondary">Check plagiarism</button>
+          <button id="stats-btn" class="secondary">Index statistics</button>
+        </div>
+        <div id="tools-output" style="margin-top: 16px"></div>
+      </section>
+    </main>
+
+    <footer>Saliksik AI — FastAPI · Celery · PostgreSQL · Redis</footer>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

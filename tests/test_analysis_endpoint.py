@@ -211,8 +211,12 @@ class TestHealthEndpoint:
         assert data["status"] in ("healthy", "degraded")
 
     async def test_root_returns_project_info(self, client):
-        """Root endpoint should return project metadata."""
-        response = await client.get("/")
+        """Root serves the landing page; the metadata lives in /api/v1/info."""
+        landing = await client.get("/")
+        assert landing.status_code == 200
+        assert "Saliksik AI" in landing.text
+
+        response = await client.get("/api/v1/info")
         assert response.status_code == 200
         data = response.json()
         assert "name" in data

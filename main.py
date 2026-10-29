@@ -5,7 +5,7 @@ FastAPI main application entry point.
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -243,7 +243,10 @@ async def dashboard():
     dashboard_file = os.path.join(static_path, "dashboard.html")
     if os.path.exists(dashboard_file):
         return FileResponse(dashboard_file)
-    return {"error": "Dashboard page not found"}
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"error": {"code": "HTTP_ERROR", "message": "Dashboard page not found"}},
+    )
 
 
 if __name__ == "__main__":
