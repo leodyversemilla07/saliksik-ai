@@ -36,6 +36,8 @@ async def analyze_citations(request: CitationAnalysisRequest, current_user: Auth
     try:
         # Parsing is CPU bound: keep it off the event loop.
         result = await asyncio.to_thread(get_citation_analyzer().analyze, request.manuscript_text)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error(f"Citation analysis failed: {exc}", exc_info=True)
         raise HTTPException(

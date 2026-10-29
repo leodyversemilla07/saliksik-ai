@@ -284,7 +284,10 @@
     $("result-metrics").innerHTML = [
       metric("Words", quality.word_count || 0),
       metric("Sentences", quality.sentence_count || 0),
-      metric("Readability", Math.round((quality.readability_score || 0) * 10) / 10),
+      metric(
+        "Readability",
+        (quality.readability_approximate ? "≈" : "") + Math.round((quality.readability_score || 0) * 10) / 10
+      ),
       metric("Entities", quality.named_entities || 0),
       metric("Processing", (meta.processing_time || 0).toFixed(2) + "s"),
     ].join("");

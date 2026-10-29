@@ -374,6 +374,8 @@ async def demo_analysis(request: DemoAnalysisRequest):
 
         return response
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Demo analysis error: {str(e)}", exc_info=True)
         raise HTTPException(

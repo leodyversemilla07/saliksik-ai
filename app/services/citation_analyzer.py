@@ -11,6 +11,33 @@ from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Section headers that introduce the reference list. The list covers the
+# English variants plus the common translations of the journals we support.
+_REFERENCE_HEADERS = (
+    r"references?",
+    r"bibliograph(?:y|ies)",
+    r"works?\s+cited",
+    r"literature\s+cited",
+    r"literatura",
+    r"referencias",
+    r"bibliographie",
+    r"literaturverzeichnis",
+    r"参考文献",
+)
+
+# A heading may be numbered ("6. References", "VI. REFERÊNCIAS") and may end
+# with a colon. It has to be the only content of the line.
+_REFERENCE_HEADER_PATTERN = re.compile(
+    r"^[ \t]*(?:(?:\d+|[IVXLC]+)[.)])?[ \t]*(?:" + "|".join(_REFERENCE_HEADERS) + r")[ \t]*:?[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# A line that starts a reference entry: numbered entries ("[3] ..." or
+# "3. Smith, J.") or author-year entries ("Smith, J. (2020) ...").
+_REFERENCE_ENTRY_PATTERN = re.compile(
+    r"^(?:\[\d+\]|\d+[.)])\s+\S|^(?:[A-Z][\w'’-]+,?\s+(?:[A-Z]\.\s*)?\(?\d{4})",
+)
+
 
 @dataclass
 class Citation:
@@ -153,26 +180,56 @@ class CitationAnalyzer:
         Returns:
             Tuple of (references_text, start_line_number)
         """
-        # Common reference section headers
-        headers = [
-            r"\n\s*references?\s*\n",
-            r"\n\s*bibliography\s*\n",
-            r"\n\s*works?\s+cited\s*\n",
-            r"\n\s*literature\s+cited\s*\n",
-            r"\n\s*sources?\s*\n",
-        ]
+        # The reference list is normally the last section of a manuscript, so
+        # the last matching heading wins. A heading may be numbered and may
+        # end with a colon ("6. References:", "REFERENCES").
+        matches = list(_REFERENCE_HEADER_PATTERN.finditer(text))
+        if matches:
+            match = matches[-1]
+            start_pos = match.end()
+            # Skip the line break that follows the heading.
+            while start_pos < len(text) and text[start_pos] in "\r\n":
+                start_pos += 1
+            line_number = text[:start_pos].count("\n") + 1
+            return text[start_pos:], line_number
 
-        for pattern in headers:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                start_pos = match.end()
-                # Calculate line number
-                line_number = text[:start_pos].count("\n") + 1
-                return text[start_pos:], line_number
+        # No heading: fall back to the trailing block of reference-like lines.
+        return self._find_reference_block(text)
 
-        # If no header found, try to find references at the end
-        # Look for a section that starts with numbered citations or author names
-        return text, 1
+    def _find_reference_block(self, text: str) -> Tuple[str, int]:
+        """
+        Locate the reference list without a heading.
+
+        The last block of consecutive reference-like lines at the end of the
+        document is treated as the reference list. The body of the manuscript
+        is not parsed as references in that case.
+
+        Returns:
+            Tuple of (references_text, start_line_number)
+        """
+        lines = text.split("\n")
+        first_reference_line: Optional[int] = None
+        consecutive = 0
+
+        for index in range(len(lines) - 1, -1, -1):
+            line = lines[index].strip()
+            if not line:
+                # A blank line ends the block, but only if it is not the very
+                # end of the document.
+                if consecutive and index < len(lines) - 1:
+                    break
+                continue
+            if _REFERENCE_ENTRY_PATTERN.match(line):
+                consecutive += 1
+                first_reference_line = index
+                continue
+            break
+
+        # A single matching line is not convincing enough to be a reference list.
+        if consecutive < 2 or first_reference_line is None:
+            return text, 1
+
+        return "\n".join(lines[first_reference_line:]), first_reference_line + 1
 
     def detect_format(self, text: str) -> str:
         """

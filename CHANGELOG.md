@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   values.
 
 ### Fixed
+- The citation analyser only recognised a reference list when the heading stood alone on
+  an unnumbered line. Numbered headings ("6. References:"), upper-case headings and the
+  common translations are recognised now, and a reference list without a heading is
+  detected as the trailing block of reference-like lines instead of parsing the whole
+  manuscript as references.
 - The request size limit middleware returned `500` for oversized uploads and invalid
   `Content-Length` headers (it raised an `HTTPException` outside the exception handlers); it
   now returns `400`/`413` with the standard error envelope.

@@ -6,6 +6,7 @@ import pytest
 
 from app.core.security import get_password_hash
 from app.models.user import User
+from app.services.citation_analyzer import CitationAnalyzer
 
 SAMPLE_MANUSCRIPT = """
 Introduction
@@ -98,3 +99,53 @@ async def _login(client, username: str) -> str:
     )
     assert response.status_code == 200, response.text
     return response.json()["access_token"]
+
+
+# ---------------------------------------------------------------------------
+# Reference section detection
+# ---------------------------------------------------------------------------
+
+BODY_TEXT = (
+    "Introduction\n"
+    "Machine learning has improved text classification [Smith, 2019].\n\n"
+    "Methods\n"
+    "We evaluated the approach on three datasets.\n\n"
+)
+
+REFERENCES = (
+    "Smith, J. (2019). A study of automated screening. Journal of Testing, 12(3), 45-67.\n"
+    "Doe, A. (2015). Statistical methods for screening. Journal of Testing, 8(1), 10-22.\n"
+)
+
+
+@pytest.mark.parametrize(
+    "heading",
+    ["References", "REFERENCES", "References:", "6. References", "VI. REFERENCES:", "Bibliography", "6. Referencias"],
+)
+def test_reference_headings_are_detected(heading):
+    analyzer = CitationAnalyzer()
+
+    section, _ = analyzer._find_reference_section(BODY_TEXT + heading + "\n" + REFERENCES)
+
+    assert section.strip().startswith("Smith, J. (2019)")
+    assert "Methods" not in section
+
+
+def test_reference_block_without_a_heading_is_detected():
+    analyzer = CitationAnalyzer()
+
+    section, _ = analyzer._find_reference_section(BODY_TEXT + REFERENCES)
+
+    assert section.strip().startswith("Smith, J. (2019)")
+    assert "Methods" not in section
+
+
+def test_a_single_reference_like_line_is_not_a_reference_section():
+    analyzer = CitationAnalyzer()
+
+    body = "Introduction\nSmith, J. (2020) was cited as an example of prior work.\n"
+
+    section, line_number = analyzer._find_reference_section(body)
+
+    assert line_number == 1
+    assert section == body

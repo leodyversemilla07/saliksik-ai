@@ -79,6 +79,8 @@ async def check_plagiarism(request: PlagiarismCheckRequest, db: DbSession, curre
             checked_against=result.checked_against,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Plagiarism check error: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -148,6 +150,8 @@ async def rebuild_plagiarism_index(db: DbSession, current_user: AdminUser):
             "rebuilt_by": current_user.username,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to rebuild index: {str(e)}", exc_info=True)
         raise HTTPException(
