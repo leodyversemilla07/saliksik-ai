@@ -158,7 +158,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     EXCLUDED_PATHS = {"/health", "/docs", "/redoc", "/api/openapi.json", "/"}
 
     # Auth endpoints get a much tighter limit to deter brute-force attacks
-    AUTH_PATHS = {"/api/v1/auth/login", "/api/v1/auth/register"}
+    # and to prevent abusing the password reset flow for email bombing.
+    AUTH_PATHS = {
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/auth/change-password",
+    }
     AUTH_MAX_REQUESTS = 10
     AUTH_WINDOW_SECONDS = 600  # 10 per 10 minutes
 

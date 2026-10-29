@@ -243,6 +243,64 @@ Send a new verification mail.
 
 ---
 
+### Forgot Password
+
+Request a password reset link. The response is identical for known and unknown
+addresses, so the endpoint cannot be used to discover registered users. Without
+SMTP configured the reset link is written to the log instead of being mailed.
+
+**Endpoint:** `POST /api/v1/auth/forgot-password`
+
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+ "email": "user@example.com"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "message": "If the address belongs to an account, a reset link has been sent"
+}
+```
+
+**Error Responses:**
+- `429 Too Many Requests` - The reset endpoint was called too often (10 requests / 10 minutes)
+
+---
+
+### Reset Password
+
+Set a new password with the token from the reset mail. The token is single use
+and expires after `PASSWORD_RESET_EXPIRE_HOURS` (default: 1 hour).
+
+**Endpoint:** `POST /api/v1/auth/reset-password`
+
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+ "token": "string (required)",
+ "new_password": "string (required, min 8 characters)"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+ "message": "Password reset successfully"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid, expired or already used token, or the new password is too weak
+
+---
+
 ### Get Profile
 
 Get current user's profile information.

@@ -125,6 +125,8 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@saliksik.ai"
     SMTP_FROM_NAME: str = "Saliksik AI"
     EMAIL_VERIFY_EXPIRE_HOURS: int = 24
+    # How long (in hours) a password reset link stays valid.
+    PASSWORD_RESET_EXPIRE_HOURS: int = 1
     FRONTEND_URL: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")

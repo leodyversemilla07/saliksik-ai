@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Password reset flow: `POST /api/v1/auth/forgot-password` and
+  `POST /api/v1/auth/reset-password` with single-use, expiring tokens. The request
+  endpoint returns the same response for known and unknown addresses so it cannot be
+  used to enumerate users.
+
 ### Security
 - Fixed API-key authentication: the strict OAuth2 scheme rejected requests without an
   `Authorization` header before the API key was looked at, so the documented `X-API-Key`

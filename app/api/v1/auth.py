@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.responses import COMMON_RESPONSES
 from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession
-from app.core.email import send_verification_email_async_safe
+from app.core.email import send_password_reset_email_async_safe, send_verification_email_async_safe
 from app.core.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     blacklist_token,
@@ -41,6 +41,8 @@ from app.schemas.user import (
     ApiKeyRotateResponse,
     LogoutRequest,
     PasswordChangeRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
     ResendVerificationResponse,
@@ -82,6 +84,15 @@ def _send_verification_email_background(email: str, username: str, token: str) -
     except RuntimeError:
         loop = asyncio.new_event_loop()
     loop.run_in_executor(None, send_verification_email_async_safe, email, username, token)
+
+
+def _send_password_reset_email_background(email: str, username: str, token: str) -> None:
+    """Schedule the password reset email in a background thread (fire-and-forget)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    loop.run_in_executor(None, send_password_reset_email_async_safe, email, username, token)
 
 
 @router.post("/api-key", response_model=ApiKeyResponse, responses=COMMON_RESPONSES)
@@ -492,3 +503,97 @@ async def resend_verification(
 
     logger.info("Verification email resent for user: %s", current_user.username)
     return ResendVerificationResponse()
+
+
+# ---------------------------------------------------------------------------
+# Password reset endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ResendVerificationResponse,
+    summary="Request a password reset link",
+    responses={
+        **COMMON_RESPONSES,
+        429: {"description": "Too many reset requests"},
+    },
+)
+async def forgot_password(request: PasswordResetRequest, db: DbSession):
+    """
+    Start the password reset flow.
+
+    The response is identical whether or not the address belongs to an account,
+    so the endpoint cannot be used to enumerate registered users.
+    """
+    email = request.email.lower().strip()
+
+    stmt = select(User).where(User.email == email)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user is not None and user.is_active:
+        # Invalidate a previous, still unused reset token.
+        user.password_reset_token = None
+        user.password_reset_token_expires_at = None
+
+        reset_token = _create_email_verification_token()
+        user.password_reset_token = reset_token
+        user.password_reset_token_expires_at = datetime.now(timezone.utc) + timedelta(
+            hours=settings.PASSWORD_RESET_EXPIRE_HOURS
+        )
+        await db.commit()
+
+        _send_password_reset_email_background(user.email, user.username, reset_token)
+        logger.info("Password reset requested for user: %s", user.username)
+    else:
+        logger.info("Password reset requested for an unknown or inactive address")
+
+    return ResendVerificationResponse(message="If the address belongs to an account, a reset link has been sent")
+
+
+@router.post(
+    "/reset-password",
+    response_model=ResendVerificationResponse,
+    summary="Set a new password using a reset token",
+    responses={
+        **COMMON_RESPONSES,
+        400: {"description": "Invalid or expired token, or the new password is too weak"},
+    },
+)
+async def reset_password(request: PasswordResetConfirm, db: DbSession):
+    """
+    Complete the password reset flow with the token from the reset email.
+    """
+    is_valid, error = validate_password(request.new_password)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+
+    stmt = select(User).where(User.password_reset_token == request.token)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
+
+    now = datetime.now(timezone.utc)
+    token_expires = user.password_reset_token_expires_at
+    if token_expires is not None and token_expires.tzinfo is None:
+        token_expires = token_expires.replace(tzinfo=timezone.utc)
+
+    if token_expires is None or now > token_expires:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
+
+    user.hashed_password = get_password_hash(request.new_password)
+    user.password_reset_token = None
+    user.password_reset_token_expires_at = None
+    await db.commit()
+
+    logger.info("Password reset completed for user: %s", user.username)
+    return ResendVerificationResponse(message="Password reset successfully")

@@ -177,6 +177,8 @@ Access:
 |----------|--------|------|-------------|
 | `/api/v1/auth/register` | POST | No | Create account |
 | `/api/v1/auth/login` | POST | No | Get JWT tokens |
+| `/api/v1/auth/forgot-password` | POST | No | Request a password reset link |
+| `/api/v1/auth/reset-password` | POST | No | Set a new password with the reset token |
 | `/api/v1/analysis/pre-review` | POST | Yes | Submit manuscript for analysis |
 | `/api/v1/analysis/demo` | POST | No | Public demo (5000 char limit) |
 | `/api/v1/analysis/history` | GET | Yes | View past analyses |
@@ -202,7 +204,7 @@ saliksik-ai/
 │   └── tasks/            # Celery background tasks
 ├── alembic/              # Database migrations
 ├── docs/                 # Project documentation
-├── tests/                # Test suite (130+ tests)
+├── tests/                # Test suite (170+ tests)
 ├── .github/workflows/    # CI pipeline
 ├── main.py               # FastAPI entry point
 ├── pyproject.toml        # Project metadata and dependencies

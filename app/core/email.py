@@ -104,3 +104,92 @@ def send_verification_email_async_safe(to_email: str, username: str, token: str)
         send_verification_email(to_email, username, token)
     except Exception as exc:
         logger.error("Unexpected error in email sender: %s", exc)
+
+
+def _build_password_reset_email(username: str, reset_url: str) -> MIMEMultipart:
+    """Build the password reset MIME message."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Reset your Saliksik AI password"
+    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+
+    plain = (
+        f"Hello {username},\n\n"
+        f"We received a request to reset your Saliksik AI password.\n\n"
+        f"Use the link below to choose a new password:\n\n"
+        f"{reset_url}\n\n"
+        f"This link expires in {settings.PASSWORD_RESET_EXPIRE_HOURS} hour(s).\n\n"
+        f"If you did not request a password reset, you can safely ignore this email — "
+        f"your password stays unchanged.\n\n"
+        f"— The Saliksik AI Team"
+    )
+    html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">Reset your password</h2>
+      <p>Hello <strong>{username}</strong>,</p>
+      <p>We received a request to reset your Saliksik AI password.</p>
+      <p style="margin: 24px 0;">
+        <a href="{reset_url}"
+           style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;
+                  text-decoration:none;font-weight:bold;">
+          Reset Password
+        </a>
+      </p>
+      <p>Or copy and paste this URL into your browser:</p>
+      <p style="word-break:break-all;color:#4b5563;">{reset_url}</p>
+      <p style="color:#9ca3af;font-size:0.875rem;">
+        This link expires in {settings.PASSWORD_RESET_EXPIRE_HOURS} hour(s).
+        If you did not request a password reset, you can safely ignore this email.
+      </p>
+    </body>
+    </html>
+    """
+    msg.attach(MIMEText(plain, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    return msg
+
+
+def send_password_reset_email(to_email: str, username: str, token: str) -> bool:
+    """
+    Send a password reset message.
+
+    - When SMTP is configured (SMTP_HOST set): sends via SMTP with STARTTLS.
+    - Otherwise: logs the reset URL (development / test mode).
+
+    Returns True on success, False on failure.
+    """
+    reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+
+    if not settings.SMTP_HOST:
+        logger.info(
+            "PASSWORD RESET (dev mode — SMTP not configured): username=%s email=%s url=%s",
+            username,
+            to_email,
+            reset_url,
+        )
+        return True
+
+    try:
+        msg = _build_password_reset_email(username, reset_url)
+        msg["To"] = to_email
+
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            smtp.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
+
+        logger.info("Password reset email sent to %s", to_email)
+        return True
+
+    except Exception as exc:
+        logger.error("Failed to send password reset email to %s: %s", to_email, exc)
+        return False
+
+
+def send_password_reset_email_async_safe(to_email: str, username: str, token: str) -> None:
+    """Fire-and-forget wrapper for the password reset email."""
+    try:
+        send_password_reset_email(to_email, username, token)
+    except Exception as exc:
+        logger.error("Unexpected error in password reset email sender: %s", exc)

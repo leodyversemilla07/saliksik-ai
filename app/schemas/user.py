@@ -93,6 +93,19 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(..., min_length=8)
 
 
+class PasswordResetRequest(BaseModel):
+    """Password reset request (the response never reveals whether the account exists)."""
+
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    """Password reset confirmation with the token from the reset email."""
+
+    token: str = Field(..., min_length=20, max_length=512)
+    new_password: str = Field(..., min_length=8)
+
+
 class VerifyEmailResponse(BaseModel):
     """Response after successful email verification."""
 
