@@ -3,11 +3,14 @@ Citation analysis service for parsing and validating references.
 Supports APA, MLA, IEEE, and Chicago citation formats.
 """
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,10 @@ class CitationAnalysisResult:
     orphan_citations: List[str]  # In-text citations without reference
     issues: List[CitationIssue] = field(default_factory=list)
     references: List[Citation] = field(default_factory=list)
+    # DOI verification (optional, see ENABLE_DOI_VERIFICATION)
+    verified_dois: int = 0
+    unverified_dois: int = 0
+    doi_details: List[Dict[str, object]] = field(default_factory=list)
 
 
 class CitationAnalyzer:
@@ -508,3 +515,35 @@ def get_citation_analyzer() -> CitationAnalyzer:
     if _citation_analyzer is None:
         _citation_analyzer = CitationAnalyzer()
     return _citation_analyzer
+
+
+async def analyze_citations(text: str) -> CitationAnalysisResult:
+    """Analyse the citations of a manuscript and verify the DOIs.
+
+    The analysis itself is CPU bound and runs in a worker thread. The optional
+    DOI verification performs outbound HTTP calls and is only executed when
+    ``ENABLE_DOI_VERIFICATION`` is enabled.
+    """
+    result = await asyncio.to_thread(get_citation_analyzer().analyze, text)
+
+    if not settings.ENABLE_DOI_VERIFICATION:
+        return result
+
+    try:
+        from app.services.doi_verifier import extract_dois, get_doi_verifier
+
+        infos = await get_doi_verifier().verify(extract_dois(text))
+    except Exception as exc:
+        logger.warning("DOI verification failed: %s", exc)
+        return result
+
+    details: List[Dict[str, object]] = [info.to_dict() for info in infos.values()]
+    result.doi_details = details
+    result.verified_dois = sum(1 for info in infos.values() if info.found)
+    result.unverified_dois = sum(1 for info in infos.values() if not info.found)
+    return result
+
+
+def analyze_citations_sync(text: str) -> CitationAnalysisResult:
+    """Blocking variant of :func:`analyze_citations` for Celery tasks."""
+    return asyncio.run(analyze_citations(text))

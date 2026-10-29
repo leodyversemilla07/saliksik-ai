@@ -59,6 +59,9 @@ dependencies = [
     "xxhash==3.6.0",
     "sentence-transformers==5.6.0",
     "langdetect==1.0.9",
+
+    # Outbound HTTP (optional DOI verification against CrossRef)
+    "httpx==0.28.1",
 ]
 
 [project.optional-dependencies]

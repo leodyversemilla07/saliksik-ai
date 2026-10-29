@@ -849,9 +849,30 @@ orphaned citations and outdated references.
    "citation_text": "Doe, A. (2015). ...",
    "line_number": 42
   }
+ ],
+ "verified_dois": 2,
+ "unverified_dois": 1,
+ "doi_details": [
+  {
+   "doi": "10.1000/example",
+   "found": true,
+   "title": "A verified article",
+   "type": "journal-article",
+   "year": 2020,
+   "publisher": "Example Publisher",
+   "source": "crossref"
+  }
  ]
 }
 ```
+
+**DOI verification:** when `ENABLE_DOI_VERIFICATION=true`, the DOIs found in the
+manuscript are resolved against the CrossRef API. `verified_dois` and
+`unverified_dois` count the results and `doi_details` contains the metadata of
+every checked DOI. The verification is best effort: a DOI that cannot be
+resolved is reported as unverified, it never fails the analysis. At most
+`DOI_VERIFICATION_MAX_DOIS` DOIs are checked per manuscript and the results are
+cached for seven days.
 
 **Error Responses:**
 - `422 Unprocessable Entity` - Manuscript text shorter than 100 characters

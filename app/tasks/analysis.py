@@ -17,7 +17,7 @@ from app.core.database import SessionLocal
 from app.models.analysis import ManuscriptAnalysis, ProcessingError
 from app.models.document_fingerprint import DocumentFingerprint
 from app.services.ai_processor import ManuscriptPreReviewer
-from app.services.citation_analyzer import get_citation_analyzer
+from app.services.citation_analyzer import analyze_citations_sync
 from app.services.language_detector import get_language_detector
 from app.services.plagiarism_detector import get_plagiarism_detector
 
@@ -144,7 +144,7 @@ def process_manuscript_task(self, analysis_id: int):
 
         if settings.ENABLE_CITATION_ANALYSIS:
             try:
-                analysis.citation_analysis = asdict(get_citation_analyzer().analyze(text))
+                analysis.citation_analysis = asdict(analyze_citations_sync(text))
             except Exception as exc:
                 logger.warning("Citation analysis failed for analysis %s: %s", analysis_id, exc)
 

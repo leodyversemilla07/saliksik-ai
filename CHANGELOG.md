@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Optional DOI verification: with `ENABLE_DOI_VERIFICATION=true` the DOIs of a manuscript
+  are resolved against the CrossRef API and reported as `verified_dois`, `unverified_dois`
+  and `doi_details`. The verification is best effort, bounded by
+  `DOI_VERIFICATION_MAX_DOIS` and cached for seven days.
 - An end-to-end CI job that starts the API and a Celery worker and runs the smoke test
   against a real stack.
 - An administration view in the bundled dashboard: platform statistics, a searchable and

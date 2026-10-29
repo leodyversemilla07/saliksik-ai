@@ -109,6 +109,13 @@ class Settings(BaseSettings):
     ENABLE_CITATION_ANALYSIS: bool = True
     ENABLE_REVIEWER_MATCHING: bool = True
 
+    # DOI verification (CrossRef). Disabled by default: it makes the analysis
+    # depend on an outbound HTTP call.
+    ENABLE_DOI_VERIFICATION: bool = False
+    CROSSREF_MAILTO: str = ""
+    DOI_VERIFICATION_TIMEOUT: float = 5.0
+    DOI_VERIFICATION_MAX_DOIS: int = 25
+
     # Multi-Language Settings
     SUPPORTED_LANGUAGES: str = "en,es,fr,de"  # Comma-separated
     DEFAULT_LANGUAGE: str = "en"

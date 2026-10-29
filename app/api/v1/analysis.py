@@ -34,7 +34,7 @@ from app.schemas.analysis import (
 from app.schemas.citation import CitationAnalysisResult
 from app.schemas.plagiarism import PlagiarismResult
 from app.services.ai_processor import ManuscriptPreReviewer
-from app.services.citation_analyzer import get_citation_analyzer
+from app.services.citation_analyzer import analyze_citations as run_citation_analysis
 from app.services.language_detector import get_language_detector
 
 logger = logging.getLogger(__name__)
@@ -350,7 +350,7 @@ async def demo_analysis(request: DemoAnalysisRequest):
 
         if settings.ENABLE_CITATION_ANALYSIS:
             try:
-                citation = await asyncio.to_thread(get_citation_analyzer().analyze, manuscript_text)
+                citation = await run_citation_analysis(manuscript_text)
                 citation_analysis = CitationAnalysisResult(**asdict(citation))
             except Exception as exc:
                 logger.warning("Demo citation analysis failed: %s", exc)

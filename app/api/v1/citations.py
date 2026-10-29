@@ -2,7 +2,6 @@
 Citation analysis API endpoints.
 """
 
-import asyncio
 import logging
 from dataclasses import asdict
 
@@ -12,7 +11,7 @@ from app.api.responses import COMMON_RESPONSES
 from app.core.config import settings
 from app.core.deps import AuthenticatedUser
 from app.schemas.citation import CitationAnalysisRequest, CitationAnalysisResult
-from app.services.citation_analyzer import get_citation_analyzer
+from app.services.citation_analyzer import analyze_citations as run_citation_analysis
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -34,8 +33,9 @@ async def analyze_citations(request: CitationAnalysisRequest, current_user: Auth
         )
 
     try:
-        # Parsing is CPU bound: keep it off the event loop.
-        result = await asyncio.to_thread(get_citation_analyzer().analyze, request.manuscript_text)
+        # Parsing is CPU bound and the optional DOI verification performs
+        # outbound HTTP calls: both stay off the event loop.
+        result = await run_citation_analysis(request.manuscript_text)
     except HTTPException:
         raise
     except Exception as exc:

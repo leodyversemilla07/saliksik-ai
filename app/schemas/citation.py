@@ -2,7 +2,7 @@
 Pydantic schemas for citation analysis.
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -68,6 +68,12 @@ class CitationAnalysisResult(BaseModel):
         description="In-text citations without matching references",
     )
     issues: List[CitationIssue] = Field(default_factory=list, description="All issues found during analysis")
+    verified_dois: int = Field(0, description="Number of DOIs that could be resolved (CrossRef)")
+    unverified_dois: int = Field(0, description="Number of DOIs that could not be resolved")
+    doi_details: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Metadata of every checked DOI (requires ENABLE_DOI_VERIFICATION)",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

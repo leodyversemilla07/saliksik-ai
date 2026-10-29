@@ -315,7 +315,7 @@ gaps, in the order in which they are worth tackling:
 |---|-----------|-------|-------|
 | 1 | Multilingual summariser | Medium | The pipeline detects the language and switches the spaCy model, but the summary itself is still produced by the English DistilBART model. A multilingual checkpoint (mBART / mT5) would fix this; it also means a different model download and a larger image. |
 | 2 | Language-specific readability metrics | Small | Partially done: syllables are counted per language and the response flags the values as approximate outside English. Language-specific *formulas* (calibrated coefficients) are still missing. |
-| 3 | DOI / CrossRef verification | Medium | The citation analyser parses references locally. Verifying DOIs against CrossRef would require an outbound HTTP dependency, caching and a rate-limit budget. |
+| 3 | DOI / CrossRef verification | Medium | Done (optional): `ENABLE_DOI_VERIFICATION` resolves the DOIs against CrossRef, with caching and a per-manuscript limit. |
 | 4 | Mixed-language documents | Medium | A manuscript with several languages currently falls back to the dominant language; per-section detection is not implemented. |
 | 5 | LanguageTool grammar checks | Medium | `grammar_issues` stays `None` unless a LanguageTool server is reachable; the project deliberately avoids the Java dependency. |
 | 6 | Administration UI | Small | Done: the dashboard has an administration view (statistics, user list, role changes). |
