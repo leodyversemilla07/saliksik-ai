@@ -113,7 +113,7 @@ On the first analysis, the DistilBART summarization model (~600 MB) is downloade
 cached under `~/.cache/huggingface`. For a faster, lower-memory setup that skips the transformer, set
 `AI_LIGHT_MODE=True` in `.env`.
 
-### Local PostgreSQL and Redis (no Docker, no sudo)
+### Local PostgreSQL and Redis (no root access required)
 
 If PostgreSQL and Redis are not installed system-wide, use the local service helper:
 
@@ -149,7 +149,7 @@ Access:
 - PostgreSQL 15+
 - Redis 7+ (required for background analysis; optional for caching)
 
-> No Docker or sudo access? The [local service helper](#local-postgresql-and-redis-no-docker-no-sudo)
+> No root access? The [local service helper](#local-postgresql-and-redis-no-root-access-required)
 > installs unprivileged PostgreSQL and Redis binaries in your home directory.
 
 ### Environment Variables
@@ -280,10 +280,11 @@ uv run ruff check app/ && uv run ty check app/
 ### CI Pipeline
 
 The GitHub Actions workflow runs on every push to `main`:
-- **Lint job** — ruff check + format verification
+- **Lint job** — ruff check + format verification + `ty` type check
 - **Test job** — pytest with coverage, PostgreSQL + Redis services
 - **Security job** — `pip-audit` against the locked dependency set
 - **Migration job** — `alembic upgrade head` + `alembic check` (schema drift detection)
+- **End-to-end job** — starts the API and a Celery worker and runs `scripts/smoke_test.py`
 
 ---
 

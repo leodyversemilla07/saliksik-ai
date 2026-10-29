@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- An end-to-end CI job that starts the API and a Celery worker and runs the smoke test
+  against a real stack.
 - A bundled web interface: a landing page at `/` and a dashboard at `/dashboard` with
   registration, login, manuscript submission (text or PDF), live status polling, analysis
   history, reviewer profile management, citation analysis and plagiarism checks. The

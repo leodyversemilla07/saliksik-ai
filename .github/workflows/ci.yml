@@ -84,13 +84,13 @@ jobs:
         run: uv sync --extra dev
 
       - name: Lint (ruff)
-        run: uv run ruff check app/ tests/ main.py scripts/ --ignore F401,E712
+        run: uv run ruff check app/ tests/ main.py scripts/
 
       - name: Format check
         run: uv run ruff format --check app/ tests/ main.py scripts/
 
-      - name: Type check (ty advisory)
-        run: uv run ty check app/ main.py --output-format github --exit-zero
+      - name: Type check (ty)
+        run: uv run ty check app/ main.py --output-format github
 
   migrations:
     runs-on: ubuntu-latest
@@ -132,6 +132,84 @@ jobs:
 
       - name: Detect schema drift (models vs. migrations)
         run: uv run alembic check
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-minimum-32-characters-long-for-testing
+      DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db
+      SQLALCHEMY_DATABASE_URI: postgresql://test_user:test_pass@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      # Light mode skips the heavy summarisation model so the end-to-end run
+      # stays fast and does not download several hundred megabytes.
+      AI_LIGHT_MODE: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra test
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Start the API and the Celery worker
+        run: |
+          uv run uvicorn main:app --host 127.0.0.1 --port 8000 > /tmp/saliksik_api.log 2>&1 &
+          uv run celery -A app.celery_app worker --loglevel=info --concurrency=2 > /tmp/saliksik_worker.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
+              echo "API is up"
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/health
+
+      - name: Run the end-to-end smoke test
+        run: uv run python scripts/smoke_test.py --base-url http://127.0.0.1:8000
+
+      - name: Upload the service logs on failure
+        if: failure()
+        run: |
+          echo "--- API log ---"
+          cat /tmp/saliksik_api.log 2>/dev/null || true
+          echo "--- Worker log ---"
+          cat /tmp/saliksik_worker.log 2>/dev/null || true
 
   security:
     runs-on: ubuntu-latest
