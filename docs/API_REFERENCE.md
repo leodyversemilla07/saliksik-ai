@@ -469,6 +469,25 @@ When the task completes, the response is the full analysis result (the same shap
 
 ---
 
+### Readability metrics
+
+`language_quality` contains the readability metrics of the manuscript:
+
+| Field | Meaning |
+|-------|---------|
+| `readability_score` | Flesch reading ease (higher is easier) |
+| `flesch_kincaid_grade` | Flesch–Kincaid grade level |
+| `automated_readability` | Coleman–Liau automated readability index |
+| `readability_language` | Language the metrics were calculated for |
+| `readability_approximate` | `true` when the formulas are not calibrated for that language |
+
+Syllables are counted with the hyphenation dictionary of the detected language
+(`pyphen` ships dictionaries for 85 languages). The formulas themselves are
+calibrated on English, so for other languages the values are an approximation
+and `readability_approximate` is `true`.
+
+---
+
 ### Analysis History
 
 Get paginated history of user's analyses.

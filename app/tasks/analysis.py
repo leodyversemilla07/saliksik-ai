@@ -122,6 +122,11 @@ def process_manuscript_task(self, analysis_id: int):
 
         processor = get_pre_reviewer()
 
+        # The processor is a singleton in the worker, so the language is reset
+        # for every manuscript: a failed detection must not keep the language
+        # of the previous task.
+        processor.set_language(settings.DEFAULT_LANGUAGE)
+
         # Detect the language first so the NLP pipeline can use a matching
         # model. Enhancement failures should not discard the core analysis.
         language = None

@@ -139,3 +139,67 @@ def test_nlp_manager_caches_models_and_falls_back(ai_processor_module):
     assert manager.unload_model("en") is True
     assert manager.unload_model("en") is False
     manager.clear_all()
+
+
+# ---------------------------------------------------------------------------
+# Language aware readability
+# ---------------------------------------------------------------------------
+
+SPANISH_TEXT = (
+    "La investigación científica requiere una metodología cuidadosa y un análisis transparente. "
+    "Este manuscrito evalúa un enfoque útil y explica sus hallazgos con claridad. "
+    "El método propuesto supera la línea base en tres conjuntos de datos de referencia."
+)
+
+GERMAN_TEXT = (
+    "Wissenschaftliche Forschung erfordert eine sorgfältige Methodik und eine transparente Analyse. "
+    "Dieses Manuskript bewertet einen nützlichen Ansatz und erklärt seine Ergebnisse klar. "
+    "Die vorgeschlagene Methode übertrifft die Grundlinie in drei Benchmark-Datensätzen."
+)
+
+
+def test_readability_reports_the_language_it_used(reviewer):
+    metrics = reviewer.assess_language_quality(ACADEMIC_TEXT)
+
+    assert metrics["readability_language"] == "en"
+    assert metrics["readability_approximate"] is False
+
+
+def test_readability_is_marked_approximate_for_other_languages(reviewer):
+    reviewer.set_language("es")
+    metrics = reviewer.assess_language_quality(SPANISH_TEXT)
+
+    assert metrics["readability_language"] == "es"
+    assert metrics["readability_approximate"] is True
+    # The English formulas are applied to the Spanish text, so the values are
+    # only an approximation - but they are always computed.
+    assert isinstance(metrics["readability_score"], float)
+    assert metrics["flesch_kincaid_grade"] is not None
+    assert metrics["automated_readability"] is not None
+
+
+def test_syllable_estimation_uses_the_language_dictionary(ai_processor_module):
+    reviewer = ai_processor_module.ManuscriptPreReviewer()
+    reviewer.light_mode = True
+
+    english = reviewer._estimate_syllables("manuscript", "en")
+    spanish = reviewer._estimate_syllables("manuscrito", "es")
+    german = reviewer._estimate_syllables("Manuskript", "de")
+
+    assert english >= 1
+    assert spanish >= 1
+    assert german >= 1
+
+
+def test_cjk_characters_count_as_syllables(ai_processor_module):
+    reviewer = ai_processor_module.ManuscriptPreReviewer()
+    reviewer.light_mode = True
+
+    assert reviewer._estimate_syllables("分析", "zh") == 2
+    assert reviewer._estimate_syllables("分析系统", "zh") == 4
+
+
+def test_sentence_splitting_handles_cjk_punctuation(ai_processor_module):
+    sentences = ai_processor_module.split_sentences("第一句话。第二句话！第三句话？")
+
+    assert len(sentences) == 3

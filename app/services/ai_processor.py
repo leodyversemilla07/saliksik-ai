@@ -26,7 +26,37 @@ logger = logging.getLogger(__name__)
 MODEL_NAME = "sshleifer/distilbart-cnn-12-6"  # 306M params, ~600MB (was bart-large-cnn 400M ~1.5GB)
 
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?…])\s+(?=[A-Z0-9À-ÖØ-Þ\"'“(])")
+# CJK and full-width punctuation terminate sentences without a space.
+_CJK_SENTENCE_BOUNDARY = re.compile(r"(?<=[。！？；])\s*")
 _HYPHENATOR = Pyphen(lang="en")
+
+# Languages whose readability formulas are calibrated on English. The metrics
+# are still computed for other languages, but they are marked as approximate.
+_READABILITY_CALIBRATED_LANGUAGES = {"en"}
+
+# CJK characters count as one syllable each.
+_CJK_CHARACTER = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]")
+
+# Syllable hyphenators per language (populated on demand).
+_HYPHENATORS: dict[str, Optional[Pyphen]] = {}
+
+
+def _get_hyphenator(language: str) -> Optional[Pyphen]:
+    """Return a hyphenator for the language, or None when it is not supported."""
+    if language in _HYPHENATORS:
+        return _HYPHENATORS[language]
+
+    hyphenator: Optional[Pyphen] = None
+    try:
+        import pyphen
+
+        if language in pyphen.LANGUAGES:
+            hyphenator = pyphen.Pyphen(lang=language)
+    except Exception as exc:  # pragma: no cover - pyphen is a hard dependency
+        logger.debug("No hyphenation dictionary for '%s': %s", language, exc)
+
+    _HYPHENATORS[language] = hyphenator
+    return hyphenator
 
 
 def split_sentences(text: str) -> list[str]:
@@ -34,7 +64,13 @@ def split_sentences(text: str) -> list[str]:
     normalized = text.strip()
     if not normalized:
         return []
-    return [part.strip() for part in _SENTENCE_BOUNDARY.split(normalized) if part.strip()]
+    # CJK punctuation ends a sentence without a following space, so the
+    # boundary is handled separately from the Latin punctuation.
+    parts = _CJK_SENTENCE_BOUNDARY.split(normalized)
+    sentences: list[str] = []
+    for part in parts:
+        sentences.extend(part.strip() for part in _SENTENCE_BOUNDARY.split(part) if part.strip())
+    return sentences
 
 
 class ManuscriptPreReviewer:
@@ -195,11 +231,27 @@ class ManuscriptPreReviewer:
         return [w for w, _ in Counter(nouns).most_common(top_n)]
 
     @staticmethod
-    def _estimate_syllables(word: str) -> int:
-        """Estimate English syllables using a local hyphenation dictionary."""
-        normalized = re.sub(r"[^a-z]", "", word.lower())
-        if not normalized:
+    def _estimate_syllables(word: str, language: str = "en") -> int:
+        """Estimate the syllables of a word for the given language."""
+        normalized = re.sub(r"[^\w]", "", word.lower(), flags=re.UNICODE)
+        if not normalized or not any(char.isalpha() for char in normalized):
+            # Pure numbers or punctuation do not add syllables.
             return 0
+
+        # CJK characters are written without spaces and each one is a syllable.
+        cjk_characters = _CJK_CHARACTER.findall(normalized)
+        if cjk_characters:
+            return len(cjk_characters)
+
+        hyphenator = _get_hyphenator(language)
+        if hyphenator is not None:
+            try:
+                syllables = [part for part in hyphenator.inserted(normalized).split("-") if part.strip("-")]
+                if syllables:
+                    return max(1, len(syllables))
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("Hyphenation failed for '%s': %s", normalized, exc)
+
         if len(normalized) <= 3:
             return 1
         return max(1, len(_HYPHENATOR.inserted(normalized).split("-")))
@@ -214,16 +266,19 @@ class ManuscriptPreReviewer:
         unique_words = len({word for word in normalized_words if word})
         sentence_count = len(split_sentences(text))
         named_entities = len(doc.ents)
+        language = (self.language or "en").lower()
 
-        quality_metrics: dict[str, int | float] = {
+        quality_metrics: dict[str, int | float | bool | str] = {
             "word_count": word_count,
             "unique_words": unique_words,
             "sentence_count": sentence_count,
             "named_entities": named_entities,
+            "readability_language": language,
+            "readability_approximate": language not in _READABILITY_CALIBRATED_LANGUAGES,
         }
 
         if sentence_count > 0 and word_count > 0:
-            syllable_count = sum(self._estimate_syllables(word) for word in normalized_words)
+            syllable_count = sum(self._estimate_syllables(word, language) for word in normalized_words)
             syllables_per_word = syllable_count / word_count
             words_per_sentence = word_count / sentence_count
             quality_metrics["readability_score"] = round(

@@ -49,6 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pypdf 6.21, python-multipart 0.0.32, sentence-transformers 5.6, torch 2.14, cryptography 50.
   Known advisories dropped from 266 (21 packages) to 10 (transformers 4.x only).
 
+### Changed
+- Readability metrics are now language aware: syllables are counted with the hyphenation
+  dictionary of the detected language, CJK characters count as one syllable each and
+  CJK punctuation ends a sentence. The response reports `readability_language` and
+  `readability_approximate` so the numbers are not mistaken for English-calibrated
+  values.
+
 ### Fixed
 - The request size limit middleware returned `500` for oversized uploads and invalid
   `Content-Length` headers (it raised an `HTTPException` outside the exception handlers); it

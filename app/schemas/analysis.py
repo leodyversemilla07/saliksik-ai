@@ -30,6 +30,16 @@ class LanguageQuality(BaseModel):
     readability_score: float
     grammar_issues: Optional[int] = None
     grammar_check_available: Optional[bool] = None
+    flesch_kincaid_grade: Optional[float] = Field(
+        None, description="Flesch–Kincaid grade level (approximate outside English)"
+    )
+    automated_readability: Optional[float] = Field(None, description="Coleman–Liau automated readability index")
+    readability_language: Optional[str] = Field(
+        None, description="Language the readability metrics were calculated for"
+    )
+    readability_approximate: Optional[bool] = Field(
+        None, description="True when the formulas are not calibrated for the detected language"
+    )
 
 
 class LanguageInfo(BaseModel):

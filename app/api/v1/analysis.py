@@ -263,6 +263,14 @@ async def get_analysis_status(task_id: str, db: DbSession, current_user: Authent
             readability_score=float(lq.get("readability_score", 0.0)),
             grammar_issues=int(lq["grammar_issues"]) if "grammar_issues" in lq else None,
             grammar_check_available=bool(lq["grammar_check_available"]) if "grammar_check_available" in lq else None,
+            flesch_kincaid_grade=(
+                float(lq["flesch_kincaid_grade"]) if lq.get("flesch_kincaid_grade") is not None else None
+            ),
+            automated_readability=(
+                float(lq["automated_readability"]) if lq.get("automated_readability") is not None else None
+            ),
+            readability_language=str(lq["readability_language"]) if lq.get("readability_language") else None,
+            readability_approximate=bool(lq["readability_approximate"]) if "readability_approximate" in lq else None,
         )
 
         language = LanguageInfo(**analysis.language_info) if analysis.language_info else None
